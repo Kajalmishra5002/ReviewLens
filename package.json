@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "client": "cd client && npm run dev",
-    "server": "cd server && npx nodemon index.js",
+    "client": "cd frontend && npm run dev",
+    "server": "cd backend && npx nodemon index.js",
     "dev": "concurrently \"npm run server\" \"npm run client\""
   },
   "keywords": [],
@@ -13,6 +13,28 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "concurrently": "^9.2.1"
-  }
+    "bcryptjs": "^3.0.3",
+    "concurrently": "^9.2.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.3.3",
+    "multer": "^2.1.1"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.27",
+    "nodemon": "^3.1.14",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kajalmishra5002/my-fullstack-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kajalmishra5002/my-fullstack-app/issues"
+  },
+  "homepage": "https://github.com/Kajalmishra5002/my-fullstack-app#readme"
 }
