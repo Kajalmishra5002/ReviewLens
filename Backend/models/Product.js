@@ -1,23 +1,122 @@
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 
+// ================= REVIEW SCHEMA =================
 const reviewSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  rating: { type: Number, min: 1, max: 5 },
-  comment: String,
-}, { timestamps: true })
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  name: {
+    type: String,
+    required: true
+  },
+  rating: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5
+  },
+  comment: {
+    type: String,
+    required: true
+  },
+  sentiment: {
+    type: String, // Positive / Negative / Neutral (AI)
+    default: "Neutral"
+  }
+}, { timestamps: true });
 
+
+// ================= PRODUCT SCHEMA =================
 const productSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  description: String,
-  price: { type: Number, required: true },
-  category: { type: String, required: true },
-  image: String,
-  stock: { type: Number, default: 0 },
-  ratings: { type: Number, default: 0 },
+  name: {
+    type: String,
+    required: true
+  },
+
+  description: {
+    type: String
+  },
+
+  features: [String],
+
+  brand: {
+    type: String,
+    required: true
+  },
+
+  price: {
+    type: Number,
+    required: true
+  },
+
+  category: {
+    type: String,
+    required: true
+  },
+
+  // ✅ external links
+  amazonLink: {
+    type: String
+  },
+  officialLink: {
+    type: String
+  },
+
+  // ✅ multiple images support
+  images: [
+    {
+      url: String,
+      public_id: String
+    }
+  ],
+
+  stock: {
+    type: Number,
+    default: 0
+  },
+
+  ratings: {
+    type: Number,
+    default: 0
+  },
+
+  numOfReviews: {
+    type: Number,
+    default: 0
+  },
+
+  smartScore: {
+    type: Number,
+    default: 0
+  },
+
+
   reviews: [reviewSchema],
+
   tags: [String],
-}, { timestamps: true })
 
-productSchema.index({ name: 'text', description: 'text', tags: 'text' })
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
 
-module.exports = mongoose.model('Product', productSchema)
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+
+// 🔍 Text search (AI search support)
+productSchema.index({
+  name: 'text',
+  description: 'text',
+  tags: 'text'
+});
+
+
+// ================= EXPORT =================
+module.exports = mongoose.model('Product', productSchema);
