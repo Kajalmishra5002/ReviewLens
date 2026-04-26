@@ -70,18 +70,15 @@ export default function ProductCard({ p }) {
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.4 }}
-      className="group relative flex flex-col justify-between rounded-2xl bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 p-5 shadow-lg hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300"
-    >
-      <Link 
-        to={`/product/${p._id}`} 
-        onClick={() => console.log("Navigating to product", p._id)}
-        className="absolute inset-0 z-20"
-      ></Link>
+    <Link to={`/product/${p._id}`} className="block h-full">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.4 }}
+        className="group relative flex flex-col justify-between rounded-2xl bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 p-5 shadow-lg hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 h-full"
+      >
+
 
       {/* Image Container */}
       <div className="relative mb-5 overflow-hidden rounded-xl bg-slate-50 dark:bg-[#0A101D] p-6 aspect-[4/3] flex items-center justify-center group-hover:bg-primary/5 dark:group-hover:bg-primary/10 transition-colors">
@@ -165,6 +162,7 @@ export default function ProductCard({ p }) {
           </button>
         </div>
       </div>
-    </motion.div>
+      </motion.div>
+    </Link>
   );
 }

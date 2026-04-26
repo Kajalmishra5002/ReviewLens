@@ -23,8 +23,22 @@ app.use('/api/giftcard', require('./routes/giftcardRoutes')); // ✅ Add gift ca
 app.use('/api/cart', require('./routes/cartRoutes')); // ✅ Add cart route
 
 // ✅ Health check route (very useful)
-app.get('/', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.send('API is running 🚀');
+});
+
+// ✅ Serve static frontend files (for deployment)
+const path = require('path');
+const __dirname_resolved = path.resolve();
+app.use(express.static(path.join(__dirname_resolved, '../frontend/dist')));
+
+// Catch-all route to serve React app for non-API requests
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(__dirname_resolved, '../frontend/dist/index.html'));
+  } else {
+    res.status(404).json({ success: false, message: "API Route Not Found" });
+  }
 });
 
 // ✅ DB Connection
