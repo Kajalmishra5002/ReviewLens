@@ -22,10 +22,12 @@ import Payment from "./pages/Payment";
 import Settings from "./pages/Settings";
 import VerifyEmail from "./pages/VerifyEmail";
 import AddProduct from "./pages/AddProduct";
+import SellerDashboard from "./pages/SellerDashboard";
 
 import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
 import FloatingCompareBar from "./components/FloatingCompareBar";
+import DeliveryMap from "./components/DeliveryMap";
 
 export default function App() {
   const { theme } = useSettingsStore();
@@ -49,9 +51,6 @@ export default function App() {
     <div className="flex h-screen overflow-hidden dark:bg-[#0A101D] bg-slate-50 transition-colors duration-300">
       <Toaster position="top-center" />
 
-      {/* Sidebar */}
-      <Sidebar />
-
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <TopBar />
@@ -68,6 +67,8 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/verify/:token" element={<VerifyEmail />} />
           <Route path="/add-product" element={<AddProduct />} />
+          <Route path="/seller-dashboard" element={<SellerDashboard />} />
+          <Route path="/tracking" element={<div className="h-full"><DeliveryMap /></div>} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/best-products" element={<ProductListing type="best" />} />
           <Route path="/search" element={<SearchResults />} />

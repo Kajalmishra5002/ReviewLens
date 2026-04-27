@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "seed:unified": "node seed_unified.js",
+    "seed:json": "node seed_json.js"
   },
   "type": "commonjs",
   "dependencies": {

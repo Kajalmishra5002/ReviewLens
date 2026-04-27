@@ -7,21 +7,26 @@ import toast from "react-hot-toast";
 export default function Profile() {
   const { activeUser, setActiveUser, logoutActiveUser } = useStore();
   const [orders, setOrders] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ name: "", email: "", gender: "", mobileNumber: "" });
+  const [editForm, setEditForm] = useState({ name: "", email: "", gender: "", mobileNumber: "", city: "" });
 
   const [activeTab, setActiveTab] = useState("profile");
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // Fetch fresh user data to get all fields including gender & mobile
-        const res = await api.get("/auth/me");
+        // Fetch fresh user data to get all fields including gender, mobile, city, addresses
+        const res = await api.get("/users/profile");
         setActiveUser(res.data.user);
+        
+        // Fetch wishlist
+        const wishRes = await api.get(`/wishlist/${res.data.user._id}`);
+        setWishlist(wishRes.data || []);
       } catch (error) {
-        console.error("Failed to fetch profile", error);
+        console.error("Failed to fetch profile data", error);
       }
     };
     
@@ -36,7 +41,8 @@ export default function Profile() {
         name: activeUser.name || "", 
         email: activeUser.email || "",
         gender: activeUser.gender || "Male",
-        mobileNumber: activeUser.mobileNumber || ""
+        mobileNumber: activeUser.mobileNumber || "",
+        city: activeUser.city || ""
       });
     }
   }, [activeUser]);
@@ -66,7 +72,7 @@ export default function Profile() {
     }
     
     try {
-      const res = await api.put("/auth/profile/update", editForm);
+      const res = await api.put("/users/profile", editForm);
       setActiveUser(res.data.user);
       setIsEditing(false);
       toast.success("Profile updated successfully!");
@@ -138,7 +144,8 @@ export default function Profile() {
                   Profile Information
                 </button>
                 <button 
-                  className={`text-left text-sm font-semibold py-2 px-3 rounded-lg transition-colors text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white`}
+                  onClick={() => setActiveTab("addresses")}
+                  className={`text-left text-sm font-semibold py-2 px-3 rounded-lg transition-colors ${activeTab === 'addresses' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                   Manage Addresses
                 </button>
@@ -178,7 +185,8 @@ export default function Profile() {
                   <Star className="w-4 h-4" /> My Reviews & Ratings
                 </button>
                 <button 
-                  className={`flex items-center gap-2 text-left text-sm font-semibold py-2 px-3 rounded-lg transition-colors text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white`}
+                  onClick={() => setActiveTab("wishlist")}
+                  className={`flex items-center gap-2 text-left text-sm font-semibold py-2 px-3 rounded-lg transition-colors ${activeTab === 'wishlist' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                   <Heart className="w-4 h-4" /> All Wishlist
                 </button>
@@ -228,7 +236,7 @@ export default function Profile() {
                     <span className="text-[10px] font-bold text-indigo-800/60 dark:text-indigo-300 uppercase tracking-widest mt-1">Reviews Given</span>
                   </div>
                   <div className="bg-pink-50 dark:bg-pink-500/10 border border-pink-100 dark:border-pink-500/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm">
-                    <span className="text-2xl font-black text-pink-600 dark:text-pink-400">5</span>
+                    <span className="text-2xl font-black text-pink-600 dark:text-pink-400">{wishlist.length}</span>
                     <span className="text-[10px] font-bold text-pink-800/60 dark:text-pink-300 uppercase tracking-widest mt-1">Saved Items</span>
                   </div>
                   <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm">
@@ -258,6 +266,17 @@ export default function Profile() {
                           value={editForm.mobileNumber} 
                           onChange={e => setEditForm({...editForm, mobileNumber: e.target.value})} 
                           placeholder="10-digit mobile number"
+                          className="w-full bg-slate-50 dark:bg-[#0A101D] text-slate-900 dark:text-white p-3 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all" 
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">City</label>
+                        <input 
+                          type="text" 
+                          value={editForm.city} 
+                          onChange={e => setEditForm({...editForm, city: e.target.value})} 
+                          placeholder="Your City"
                           className="w-full bg-slate-50 dark:bg-[#0A101D] text-slate-900 dark:text-white p-3 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all" 
                         />
                       </div>
@@ -327,6 +346,11 @@ export default function Profile() {
                     <div>
                       <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Gender</p>
                       <p className="text-base font-semibold text-slate-900 dark:text-white">{activeUser.gender || "Not Specified"}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">City</p>
+                      <p className="text-base font-semibold text-slate-900 dark:text-white">{activeUser.city || "Not Specified"}</p>
                     </div>
 
                     <div>
@@ -415,6 +439,72 @@ export default function Profile() {
                       <div className="text-right">
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total</p>
                         <p className="text-slate-900 dark:text-white font-black text-lg">₹{(order.totalPrice || 0).toLocaleString("en-IN")}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* WISHLIST TAB */}
+          {activeTab === 'wishlist' && (
+            <div className="bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 md:p-8">
+              <h2 className="text-xl font-black text-slate-900 dark:text-white mb-6">My Wishlist</h2>
+              
+              {wishlist.length === 0 ? (
+                <div className="text-center py-16 bg-slate-50 dark:bg-[#0A101D] rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+                  <Heart className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+                  <p className="text-lg text-slate-900 dark:text-white font-bold mb-1">Wishlist is empty</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Save items you love and buy them later.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {wishlist.map(item => (
+                    <div key={item._id} className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0A101D] rounded-2xl overflow-hidden shadow-sm flex flex-col transition-transform hover:-translate-y-1">
+                      <div className="h-48 p-4 bg-slate-50 dark:bg-[#1C2333] flex items-center justify-center">
+                        <img src={item.image || (item.images && item.images[0]?.url) || 'https://via.placeholder.com/150'} alt={item.name} className="h-full object-contain mix-blend-multiply dark:mix-blend-normal" />
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col">
+                        <h3 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-2 mb-2">{item.name || item.title}</h3>
+                        <p className="text-lg font-black text-indigo-600 dark:text-indigo-400 mt-auto">₹{item.price?.toLocaleString("en-IN")}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ADDRESSES TAB */}
+          {activeTab === 'addresses' && (
+            <div className="bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 md:p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-black text-slate-900 dark:text-white">Saved Addresses</h2>
+                <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5">
+                  + Add New Address
+                </button>
+              </div>
+              
+              {!activeUser?.addresses || activeUser.addresses.length === 0 ? (
+                <div className="text-center py-16 bg-slate-50 dark:bg-[#0A101D] rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+                  <p className="text-lg text-slate-900 dark:text-white font-bold mb-1">No addresses saved</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Add an address so you can checkout faster.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {activeUser.addresses.map((address, idx) => (
+                    <div key={idx} className="border border-slate-200 dark:border-slate-800 p-5 rounded-2xl relative bg-slate-50 dark:bg-[#0A101D]">
+                      {address.isDefault && (
+                        <span className="absolute top-4 right-4 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 text-xs px-2 py-1 rounded-full font-bold">
+                          Default
+                        </span>
+                      )}
+                      <p className="font-bold text-slate-900 dark:text-white mb-2">{activeUser.name} <span className="text-slate-500 font-normal ml-2">{activeUser.mobileNumber}</span></p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">{address.street}, {address.city}, {address.state} {address.zipCode}</p>
+                      <div className="mt-4 flex items-center gap-4">
+                        <button className="text-sm font-bold text-indigo-600 dark:text-indigo-400">Edit</button>
+                        <button className="text-sm font-bold text-red-600 dark:text-red-400">Remove</button>
                       </div>
                     </div>
                   ))}

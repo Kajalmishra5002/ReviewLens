@@ -26,6 +26,14 @@ router.post('/new', isAuthenticated, placeNewOrder);
 // ✅ Get logged-in user's orders
 router.get('/orders/me', isAuthenticated, fetchMyOrders);
 
+// ✅ Get seller's orders
+router.get(
+  '/seller/:id',
+  isAuthenticated,
+  authorizedRoles('Seller', 'Admin'),
+  require('../controllers/orderController').getSellerOrders
+);
+
 // ✅ Get single order
 // Important: This route catches /my and /:orderId so we put it carefully.
 router.get('/:orderId', isAuthenticated, fetchSingleOrder);

@@ -21,6 +21,9 @@ app.use('/api/recommendations', require('./routes/recommendationRoutes')); // �
 app.use('/api/payment', require('./routes/paymentRoutes')); // ✅ Add payment route
 app.use('/api/giftcard', require('./routes/giftcardRoutes')); // ✅ Add gift card route
 app.use('/api/cart', require('./routes/cartRoutes')); // ✅ Add cart route
+app.use('/api/notifications', require('./routes/notificationRoutes')); // ✅ Add notification route
+app.use('/api/users', require('./routes/userRoutes')); // ⭐ Add users route
+app.use('/api/wishlist', require('./routes/wishlistRoutes')); // ⭐ Add wishlist route
 
 // ✅ Health check route (very useful)
 app.get('/api/health', (req, res) => {

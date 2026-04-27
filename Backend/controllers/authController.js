@@ -28,39 +28,16 @@ exports.register = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Email already exists", 400));
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-
   const user = await User.create({
     name,
     email,
-    password: hashedPassword,
+    password: password, // ✅ Let pre-save hook handle hashing
     role: "User",
-    isVerified: false
+    isVerified: true // ✅ Auto verify for local dev
   });
 
-  const verificationToken = user.generateEmailVerificationToken();
-  await user.save({ validateBeforeSave: false });
-
-  const resetUrl = `${process.env.FRONTEND_URL}/verify/${verificationToken}`;
-
-  try {
-    const { verificationEmailTemplate } = require('../utils/emailTemplates');
-    await sendEmail({
-      email: user.email,
-      subject: "Verify Your Email - ReviewLens",
-      message: verificationEmailTemplate(user.name, resetUrl)
-    });
-    
-    res.status(201).json({
-      success: true,
-      message: "Verification email sent. Please check your inbox."
-    });
-  } catch(err) {
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpire = undefined;
-    await user.save({ validateBeforeSave: false });
-    return next(new ErrorHandler("Verification email failed to send", 500));
-  }
+  // Bypassing email verification for now since isVerified is true
+  sendToken(user, 201, "Registration successful", res);
 });
 
 
@@ -88,6 +65,27 @@ exports.login = catchAsyncErrors(async (req, res, next) => {
   }
 
   sendToken(user, 200, "Login successful", res);
+});
+
+
+// ================= GOOGLE LOGIN (MOCK) =================
+exports.googleLogin = catchAsyncErrors(async (req, res, next) => {
+  const { email = "google@test.com", name = "Google User" } = req.body;
+  
+  let user = await User.findOne({ email });
+
+  if (!user) {
+    // Create mock user if doesn't exist
+    user = await User.create({
+      name,
+      email,
+      password: "google_mock_password", 
+      role: "User",
+      isVerified: true
+    });
+  }
+
+  sendToken(user, 200, "Google Login successful", res);
 });
 
 

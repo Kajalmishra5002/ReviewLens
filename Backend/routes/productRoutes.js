@@ -57,6 +57,15 @@ router.delete(
   deleteProduct
 );
 
+// ================= SELLER =================
+// ✅ Get seller's products
+router.get(
+  '/seller/:id',
+  isAuthenticated,
+  authorizedRoles('Seller', 'Admin'),
+  require('../controllers/productController').getSellerProducts
+);
+
 
 // ================= PUBLIC =================
 
@@ -108,6 +117,13 @@ router.post(
   '/analyze-review',
   isAuthenticated,
   analyzeReview
+);
+
+// 🤖 AI Description generation
+router.post(
+  '/generate-description',
+  isAuthenticated,
+  require('../controllers/productController').generateDescription
 );
 
 

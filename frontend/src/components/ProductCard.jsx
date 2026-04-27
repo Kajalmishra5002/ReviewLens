@@ -1,14 +1,17 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Star, TrendingUp, Sparkles, Check, Heart, ShieldCheck, Zap, Plus } from "lucide-react";
+import { Star, TrendingUp, Sparkles, Check, Heart, ShieldCheck, Zap, Plus, Award } from "lucide-react";
 import useStore from "../store/useStore";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 
-export default function ProductCard({ p }) {
+export default function ProductCard({ p, badgeType }) {
   const navigate = useNavigate();
   const { addToCart, addToCompare, compareList = [] } = useStore();
 
   if (!p) return null;
+
+  const isTrending = badgeType === "trending";
+  const isBest = badgeType === "best";
 
   const isCompared = compareList?.some(item => item._id === p._id);
 
@@ -34,6 +37,7 @@ export default function ProductCard({ p }) {
   // 🛒 Add to Cart
   const handleAddToCart = (e) => {
     e.preventDefault(); // prevent triggering Link
+    e.stopPropagation(); // prevent event bubbling to Link
     addToCart(p);
     toast.success("Added to cart");
   };
@@ -41,6 +45,7 @@ export default function ProductCard({ p }) {
   // 💳 Buy Now → cart → navigate
   const handleBuyNow = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     addToCart(p);
     navigate("/cart");
   };
@@ -50,6 +55,7 @@ export default function ProductCard({ p }) {
   // 🔁 Compare
   const handleCompare = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     if (isCategoryMismatch) {
       toast.error(`Please select products from the same category (${compareList[0].category})`);
       return;
@@ -95,6 +101,18 @@ export default function ProductCard({ p }) {
           <div className="absolute top-3 left-3 z-30 flex items-center gap-1 rounded-full bg-white/90 dark:bg-[#111A2E]/90 backdrop-blur-md px-2.5 py-1 text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-sm">
             <Sparkles className={`w-3.5 h-3.5 ${sentimentColor}`} />
             <span className="text-slate-800 dark:text-white">{p.sentimentScore}</span>
+          </div>
+        )}
+
+        {/* Dynamic Badges (Bottom Left) */}
+        {isTrending && (
+          <div className="absolute bottom-3 left-3 z-30 flex items-center gap-1 bg-indigo-500 text-white px-2.5 py-1 rounded-full text-[10px] font-bold shadow-md">
+            <TrendingUp className="w-3 h-3" /> Trending
+          </div>
+        )}
+        {isBest && (
+          <div className="absolute bottom-3 left-3 z-30 flex items-center gap-1 bg-orange-500 text-white px-2.5 py-1 rounded-full text-[10px] font-bold shadow-md">
+            <Award className="w-3 h-3" /> Best Product
           </div>
         )}
 

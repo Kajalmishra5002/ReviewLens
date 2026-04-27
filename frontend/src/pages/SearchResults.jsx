@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { Sparkles, Camera, Battery, DollarSign, Zap, Monitor, Shield, Gamepad2, Award, ArrowLeft, Star, TrendingUp } from "lucide-react";
 import api from "../api/axios";
-import DashboardProductCard from "../components/DashboardProductCard";
+import ProductCard from "../components/ProductCard";
 import Footer from "../components/Footer";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -221,7 +221,7 @@ export default function SearchResults() {
                   <div className="absolute -top-3 -left-3 w-8 h-8 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full flex items-center justify-center font-black text-sm z-20 shadow-lg border-2 border-white dark:border-[#0A101D]">
                     {index + 2}
                   </div>
-                  <DashboardProductCard p={p} />
+                  <ProductCard p={p} />
                 </motion.div>
               ))}
             </AnimatePresence>

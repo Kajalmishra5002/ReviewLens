@@ -263,6 +263,31 @@ export default function ProductDetail() {
               {isCompared ? <Check className="w-5 h-5" /> : <TrendingUp className="w-5 h-5" />}
             </button>
           </div>
+
+          {(product.amazonLink || product.flipkartLink) && (
+            <div className="flex flex-col sm:flex-row gap-4 mt-4">
+              {product.amazonLink && (
+                <a 
+                  href={product.amazonLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-[#FF9900] hover:bg-[#E38800] text-white py-3.5 rounded-2xl font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-1 flex justify-center items-center gap-2"
+                >
+                  Buy on Amazon
+                </a>
+              )}
+              {product.flipkartLink && (
+                <a 
+                  href={product.flipkartLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-[#2874F0] hover:bg-[#1C5ECA] text-white py-3.5 rounded-2xl font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-1 flex justify-center items-center gap-2"
+                >
+                  Buy on Flipkart
+                </a>
+              )}
+            </div>
+          )}
         </motion.div>
       </div>
 

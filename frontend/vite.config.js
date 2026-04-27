@@ -8,5 +8,8 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:5000"
     }
+  },
+  optimizeDeps: {
+    force: true // 🔄 Force Vite to clear cache and re-optimize (picks up recharts)
   }
 })

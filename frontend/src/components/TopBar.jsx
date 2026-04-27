@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Bell, Star, ShoppingCart } from "lucide-react";
+import { Search, Bell, Star, ShoppingCart, Menu, LayoutDashboard, GitCompare, MessageSquare } from "lucide-react";
 import useStore from "../store/useStore";
 import api from "../api/axios";
 import ThemeToggle from "./ThemeToggle";
@@ -10,7 +10,9 @@ export default function TopBar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const searchRef = useRef(null);
+  const menuRef = useRef(null);
   
   const { activeUser, logoutActiveUser, cartItems } = useStore();
   const navigate = useNavigate();
@@ -19,6 +21,9 @@ export default function TopBar() {
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setIsSearchOpen(false);
+      }
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -41,12 +46,91 @@ export default function TopBar() {
     return () => clearTimeout(debounce);
   }, [searchQuery]);
 
+  useEffect(() => {
+    if (activeUser) {
+      const fetchNotifications = async () => {
+        try {
+          const res = await api.get('/notifications/my');
+          useStore.getState().setNotifications(res.data.notifications);
+        } catch (err) {
+          console.error("Failed to fetch notifications", err);
+        }
+      };
+      fetchNotifications();
+    }
+  }, [activeUser]);
+
   return (
     <header className="h-20 bg-white dark:bg-[#0A101D] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 sticky top-0 z-40 transition-colors duration-300">
       
-      {/* Search Bar */}
-      <div className="flex-1 max-w-2xl relative" ref={searchRef}>
-        <div className="relative w-full group">
+      {/* Left Area (Menu + Search) */}
+      <div className="flex-1 flex items-center gap-4 max-w-2xl relative">
+        
+        {/* Hamburger Menu */}
+        <div className="relative" ref={menuRef}>
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          
+          {/* Dropdown Menu */}
+          <AnimatePresence>
+            {isMenuOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-0 top-full mt-2 w-56 bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden z-50 origin-top-left"
+              >
+                <div className="p-2 space-y-1">
+                  <Link 
+                    to="/dashboard" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  >
+                    <LayoutDashboard className="w-4 h-4 text-indigo-500" />
+                    Dashboard
+                  </Link>
+                  <Link 
+                    to="/add-product" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-circle text-orange-500"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                    Add Product
+                  </Link>
+                  <Link 
+                    to="/compare" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  >
+                    <GitCompare className="w-4 h-4 text-emerald-500" />
+                    Compare
+                  </Link>
+                  <Link 
+                    to="/reviews" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  >
+                    <MessageSquare className="w-4 h-4 text-sky-500" />
+                    Reviews
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Logo */}
+        <Link to="/" className="text-xl font-bold bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent flex-shrink-0">
+          ReviewLens
+        </Link>
+
+        {/* Search Bar */}
+        <div className="relative w-full group" ref={searchRef}>
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
           <input
             type="text"
@@ -113,11 +197,71 @@ export default function TopBar() {
             </span>
           )}
         </Link>
+        
+        {/* Map Tracking Icon */}
+        <Link to="/tracking" title="Delivery Tracking" className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg>
+        </Link>
+        
+        {/* Add Product Icon (Sellers Only) */}
+        {activeUser && (activeUser.role === "Seller" || activeUser.role === "Admin") && (
+          <button 
+            title="Add Product"
+            onClick={() => navigate("/seller-dashboard", { state: { tab: "add_product" } })}
+            className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          </button>
+        )}
 
-        <button className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300 hidden md:block">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-[#0A101D] rounded-full"></span>
-        </button>
+        {/* Notifications Dropdown */}
+        {activeUser && (
+          <div className="relative group ml-2">
+            <button className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
+              <Bell className="w-5 h-5" />
+              {useStore((state) => state.unreadCount) > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-[#0A101D] rounded-full animate-pulse"></span>
+              )}
+            </button>
+
+            {/* Dropdown Panel */}
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 transform origin-top-right group-hover:scale-100 scale-95">
+              <div className="p-4 bg-slate-50 dark:bg-[#0A101D]/50 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <h3 className="text-slate-900 dark:text-white font-semibold">Notifications</h3>
+                {useStore((state) => state.unreadCount) > 0 && (
+                  <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-xs font-bold px-2 py-0.5 rounded-full">
+                    {useStore((state) => state.unreadCount)} New
+                  </span>
+                )}
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {useStore((state) => state.notifications).length > 0 ? (
+                  useStore((state) => state.notifications).map((notif) => (
+                    <div 
+                      key={notif._id} 
+                      onClick={async () => {
+                        if (!notif.isRead) {
+                          try {
+                            await api.put(`/notifications/${notif._id}/read`);
+                            useStore.getState().markNotificationAsRead(notif._id);
+                          } catch (err) { console.error(err); }
+                        }
+                      }}
+                      className={`p-4 border-b border-slate-100 dark:border-slate-800/50 cursor-pointer transition-colors ${notif.isRead ? 'bg-white dark:bg-[#111A2E]' : 'bg-indigo-50/50 dark:bg-indigo-900/10 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'}`}
+                    >
+                      <p className={`text-sm ${notif.isRead ? 'text-slate-600 dark:text-slate-400' : 'text-slate-900 dark:text-white font-medium'}`}>{notif.message}</p>
+                      <p className="text-xs text-slate-400 mt-1">{new Date(notif.createdAt).toLocaleString()}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-6 text-center text-slate-500 text-sm">
+                    No new notifications
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {activeUser ? (
           <div className="relative group ml-2">
@@ -133,17 +277,14 @@ export default function TopBar() {
               <div className="p-2 space-y-1">
                 {(activeUser.role === "Seller" || activeUser.role === "Admin") && (
                   <button 
-                    onClick={() => navigate("/add-product")} 
+                    onClick={() => navigate("/seller-dashboard")} 
                     className="w-full text-left block px-3 py-2.5 text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-colors"
                   >
-                    + Add Product
+                    🏪 Seller Dashboard
                   </button>
                 )}
                 <Link to="/profile" className="block px-3 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                   My Profile
-                </Link>
-                <Link to="/settings" className="block px-3 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                  Settings
                 </Link>
                 <div className="my-1 border-t border-slate-100 dark:border-slate-800"></div>
                 <button 

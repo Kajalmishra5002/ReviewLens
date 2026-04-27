@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Award, Grid, Search, Filter, SlidersHorizontal, ArrowRight, Heart, ShoppingCart, CheckCircle2, Zap, Star } from "lucide-react";
 import api from "../api/axios";
-import DashboardProductCard from "../components/DashboardProductCard";
+import ProductCard from "../components/ProductCard";
 import Footer from "../components/Footer";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -161,7 +161,7 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-               <DashboardProductCard p={p} badgeType="best" />
+               <ProductCard p={p} badgeType="best" />
             </motion.div>
           ))}
         </div>
@@ -317,7 +317,7 @@ export default function Dashboard() {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <DashboardProductCard p={p} />
+                      <ProductCard p={p} badgeType="trending" />
                     </motion.div>
                   ))}
                 </div>

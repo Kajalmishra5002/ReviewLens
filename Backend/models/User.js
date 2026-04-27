@@ -48,6 +48,27 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
+  wishlist: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product'
+    }
+  ],
+
+  addresses: [
+    {
+      street: String,
+      city: String,
+      state: String,
+      zipCode: String,
+      country: String,
+      isDefault: {
+        type: Boolean,
+        default: false
+      }
+    }
+  ],
+
   // 🔐 Password reset fields
   resetPasswordToken: String,
   resetPasswordExpire: Date,

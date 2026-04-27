@@ -57,7 +57,10 @@ async function seedData() {
         features: item.features || [],
         reviews: mappedReviews,
         smartScore: Math.round((item.rating || 0) * 20), // mock out of 100
-        trendingScore: Math.round(Math.random() * 100)
+        trendingScore: Math.round(Math.random() * 100),
+        amazonLink: item.amazonLink || "https://www.amazon.in/",
+        flipkartLink: item.flipkartLink || "https://www.flipkart.com/",
+        createdBy: defaultUser._id
       };
     });
 

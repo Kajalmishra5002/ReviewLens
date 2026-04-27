@@ -1,0 +1,43 @@
+{
+  "name": "Sony WH-1000XM5 Wireless Noise Cancelling Headphones",
+  "description": "Industry Leading noise cancellation, 30 hours battery life, quick charge, built-in mic for phone calls.",
+  "features": [
+    "Industry leading Noise Canceling",
+    "30-hour battery life",
+    "Multipoint connection",
+    "Touch Sensor controls"
+  ],
+  "brand": "Sony",
+  "price": 29990,
+  "category": "Electronics",
+  "amazonLink": "https://www.amazon.in/dp/B09XS7JWHH",
+  "flipkartLink": "https://www.flipkart.com/sony-wh-1000xm5-bluetooth-headset/p/itm...",
+  "images": [
+    {
+      "url": "https://m.media-amazon.com/images/I/61vJtKbAssL._SL1500_.jpg",
+      "public_id": "sony_xm5_img1"
+    }
+  ],
+  "stock": 45,
+  "ratings": 4.8,
+  "numOfReviews": 125,
+  "smartScore": 92,
+  "reviews": [
+    {
+      "user": "60d0fe4f5311236168a109ca",
+      "name": "Alex Doe",
+      "rating": 5,
+      "comment": "The noise cancellation is amazing. Very comfortable to wear.",
+      "sentiment": "Positive"
+    },
+    {
+      "user": "60d0fe4f5311236168a109cb",
+      "name": "Jane Smith",
+      "rating": 4,
+      "comment": "Great sound quality but a bit pricey.",
+      "sentiment": "Positive"
+    }
+  ],
+  "tags": ["headphones", "wireless", "noise-cancelling", "audio"],
+  "createdBy": "60d0fe4f5311236168a109ca"
+}

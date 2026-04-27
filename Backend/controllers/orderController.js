@@ -8,6 +8,8 @@ const catchAsyncErrors = require('../middlewares/catchAsyncError');
 const { ErrorHandler } = require('../middlewares/errorMiddleware');
 
 
+const { createNotification } = require('./notificationController');
+
 // ================= PLACE ORDER =================
 exports.placeNewOrder = catchAsyncErrors(async (req, res, next) => {
   const {
@@ -24,7 +26,7 @@ exports.placeNewOrder = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Cart is empty", 400));
   }
 
-  // 🔥 Update stock
+  // 🔥 Update stock & notify sellers
   for (const item of orderItems) {
     const product = await Product.findById(item.product);
 
@@ -40,6 +42,15 @@ exports.placeNewOrder = catchAsyncErrors(async (req, res, next) => {
 
     product.stock -= item.quantity;
     await product.save();
+
+    // Create notification for seller
+    if (product.createdBy) {
+       await createNotification({
+         userId: product.createdBy,
+         message: `New order received for your product: ${product.name} (Qty: ${item.quantity})`,
+         type: 'Order'
+       });
+    }
   }
 
   // 🔥 Create order
@@ -155,5 +166,53 @@ exports.deleteOrder = catchAsyncErrors(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Order deleted"
+  });
+});
+
+// ================= GET SELLER ORDERS =================
+exports.getSellerOrders = catchAsyncErrors(async (req, res, next) => {
+  const sellerId = req.params.id;
+
+  if (req.user.role !== 'Seller' && req.user.role !== 'Admin') {
+     return next(new ErrorHandler("Unauthorized access", 403));
+  }
+
+  // Find all orders that contain products created by this seller
+  const orders = await Order.find()
+    .populate('user', 'name email')
+    .populate({
+      path: 'orderItems.product',
+      select: 'name price image createdBy stock category'
+    });
+
+  const sellerOrders = [];
+
+  orders.forEach(order => {
+    // Filter items to only include those belonging to this seller
+    const sellerItems = order.orderItems.filter(item => {
+      // product might be null if it was deleted, handle safely
+      return item.product && item.product.createdBy && item.product.createdBy.toString() === sellerId;
+    });
+
+    if (sellerItems.length > 0) {
+      // Create a specific seller-oriented view of the order
+      const sellerOrderRevenue = sellerItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
+      
+      sellerOrders.push({
+        _id: order._id,
+        user: order.user,
+        orderItems: sellerItems,
+        sellerRevenue: sellerOrderRevenue,
+        shippingInfo: order.shippingInfo,
+        status: order.status,
+        paidAt: order.paidAt,
+        createdAt: order.createdAt
+      });
+    }
+  });
+
+  res.status(200).json({
+    success: true,
+    orders: sellerOrders
   });
 });

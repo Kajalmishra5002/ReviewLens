@@ -8,10 +8,11 @@ const { ErrorHandler } = require('../middlewares/errorMiddleware');
 
 // ================= CREATE PRODUCT (SELLER) =================
 exports.createProduct = catchAsyncErrors(async (req, res, next) => {
-  const { name, category, price, image, features, rating } = req.body;
+  const { name, category, price, compareAtPrice, discount, description, brand, model, sku, condition, warranty, stock, lowStockAlert, weight, tags, images, features, rating } = req.body;
 
-  if (category !== "Electronics") {
-    return next(new ErrorHandler("Only Electronics category is allowed", 400));
+  const allowedCategories = ["Electronics", "Mobile", "Laptop", "Tablet", "TV", "Audio", "Camera", "Gaming", "Accessories", "Smartwatch", "Networking"];
+  if (category && !allowedCategories.includes(category)) {
+    return next(new ErrorHandler("Invalid electronics category", 400));
   }
 
   // Generate 2 dummy reviews if demo requests it
@@ -32,18 +33,39 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
     }
   ];
 
+  // Map features properly (could be array or comma-separated string)
+  let parsedFeatures = [];
+  if (Array.isArray(features)) {
+    parsedFeatures = features;
+  } else if (features) {
+    parsedFeatures = features.split(',').map(f => f.trim());
+  }
+
+  // Map images properly
+  let parsedImages = [];
+  if (Array.isArray(images) && images.length > 0) {
+    parsedImages = images.map((url, i) => ({ url, public_id: `img_${i}` }));
+  } else if (req.body.image) {
+    parsedImages = [{ url: req.body.image, public_id: "demo_img" }];
+  } else {
+    parsedImages = [{ url: "https://via.placeholder.com/400", public_id: "placeholder" }];
+  }
+
+  // Compile detailed description and other fields if needed, or save directly
   const productData = {
-    name,
-    category: "Electronics",
+    name: name,
+    description: description,
+    category: category || "Electronics",
     price: Number(price),
-    brand: name ? name.split(' ')[0] : "Generic",
-    features: features ? features.split(',').map(f => f.trim()) : [],
-    images: [{ url: image, public_id: "demo_img" }],
+    brand: brand || (name ? name.split(' ')[0] : "Generic"),
+    features: parsedFeatures,
+    images: parsedImages,
+    tags: tags || [],
+    stock: stock ? Number(stock) : 100,
     ratings: rating ? Number(rating) : 0,
     numOfReviews: 2,
     reviews: dummyReviews,
-    createdBy: req.user._id,
-    stock: 100
+    createdBy: req.user._id
   };
 
   const product = await Product.create(productData);
@@ -337,6 +359,31 @@ exports.analyzeReview = catchAsyncErrors(async (req, res) => {
   });
 });
 
+// ================= 🤖 AI DESCRIPTION GENERATION =================
+exports.generateDescription = catchAsyncErrors(async (req, res) => {
+  const { name, brand, model, category, features } = req.body;
+
+  try {
+    // Attempt to use Python AI service
+    const aiRes = await axios.post(
+      `${process.env.AI_SERVICE_URL}/generate`,
+      { name, brand, model, category, features }
+    );
+
+    res.json({
+      success: true,
+      description: aiRes.data.description || aiRes.data.text || "AI generated description."
+    });
+  } catch (error) {
+    // Fallback if python service doesn't have /generate implemented
+    console.error("AI service /generate failed", error.message);
+    res.json({
+      success: true,
+      description: `Introducing the new ${brand || ''} ${name || model || 'Product'}. A premium offering in the ${category || 'Electronics'} category, designed to elevate your experience with features like ${features ? features.join(', ') : 'cutting-edge technology'}.`
+    });
+  }
+});
+
 // ================= PRODUCT COMPARISON =================
 exports.compareProducts = async (req, res) => {
   const { id1, id2 } = req.params;
@@ -349,3 +396,20 @@ exports.compareProducts = async (req, res) => {
     rating: p1.rating > p2.rating ? p1.name : p2.name,
   });
 };
+
+// ================= GET SELLER PRODUCTS =================
+exports.getSellerProducts = catchAsyncErrors(async (req, res, next) => {
+  // Only the logged in seller should fetch their own products, or we use params
+  const sellerId = req.params.id;
+  
+  if (req.user.role !== 'Seller' && req.user.role !== 'Admin') {
+     return next(new ErrorHandler("Unauthorized", 403));
+  }
+
+  const products = await Product.find({ createdBy: sellerId });
+
+  res.status(200).json({
+    success: true,
+    products
+  });
+});

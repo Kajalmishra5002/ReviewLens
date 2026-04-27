@@ -121,6 +121,27 @@ const useStore = create(
     })),
 
   clearCompare: () => set({ compareList: [] }),
+
+  // 🔔 NOTIFICATIONS
+  notifications: [],
+  unreadCount: 0,
+
+  setNotifications: (notifs) =>
+    set({
+      notifications: notifs,
+      unreadCount: notifs.filter((n) => !n.isRead).length,
+    }),
+
+  markNotificationAsRead: (id) =>
+    set((state) => {
+      const updated = state.notifications.map((n) =>
+        n._id === id ? { ...n, isRead: true } : n
+      );
+      return {
+        notifications: updated,
+        unreadCount: updated.filter((n) => !n.isRead).length,
+      };
+    }),
     }),
     {
       name: "reviewlens-store",

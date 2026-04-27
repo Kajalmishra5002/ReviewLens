@@ -60,6 +60,9 @@ const productSchema = new mongoose.Schema({
   amazonLink: {
     type: String
   },
+  flipkartLink: {
+    type: String
+  },
   officialLink: {
     type: String
   },

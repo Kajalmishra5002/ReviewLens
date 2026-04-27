@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Search, SlidersHorizontal, Grid, Star, Award, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import api from "../api/axios";
-import DashboardProductCard from "../components/DashboardProductCard";
+import ProductCard from "../components/ProductCard";
 import Footer from "../components/Footer";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -275,7 +275,7 @@ export default function ProductListing({ type = "all" }) {
                           transition={{ duration: 0.2 }}
                           className="relative"
                         >
-                          <DashboardProductCard p={p} badgeType={badge} />
+                          <ProductCard p={p} badgeType={badge} />
                         </motion.div>
                       );
                     })}
