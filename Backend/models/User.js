@@ -36,6 +36,14 @@ const userSchema = new mongoose.Schema({
     match: [/^\d{10}$/, 'Please enter a valid 10-digit mobile number']
   },
 
+  dob: {
+    type: String // or Date
+  },
+
+  city: {
+    type: String
+  },
+
   avatar: {
     public_id: String,
     url: String

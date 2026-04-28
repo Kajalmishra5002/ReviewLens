@@ -12,12 +12,12 @@ exports.getAllUsers = catchAsyncErrors(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = 10;
 
-  const users = await User.find({ role: 'User' })
+  const users = await User.find()
     .skip((page - 1) * limit)
     .limit(limit)
     .sort({ createdAt: -1 });
 
-  const totalUsers = await User.countDocuments({ role: 'User' });
+  const totalUsers = await User.countDocuments();
 
   res.status(200).json({
     success: true,

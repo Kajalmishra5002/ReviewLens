@@ -21,19 +21,85 @@ export default function DeliveryMap({
   const [address, setAddress] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
   const [coords, setCoords] = useState(initialCustomerLocation || sellerLocation); // Default to seller or customer
   const [gettingLocation, setGettingLocation] = useState(false);
 
   // Tracking State
   const [trackingStatus, setTrackingStatus] = useState("Out for Delivery");
   const [eta, setEta] = useState("45 mins");
-  const [routeCoordinates, setRouteCoordinates] = useState([]);
+
+  // Reverse Geocoding via Nominatim
+  const handlePinMove = async (lat, lng) => {
+    setCoords({ lat, lng });
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+      const data = await res.json();
+      if (data && data.display_name) {
+        setAddress(data.display_name);
+        setSearchQuery(data.display_name);
+      }
+    } catch (err) {
+      console.error("Geocoding failed", err);
+    }
+  };
+
+  // Search Address via Nominatim
+  const searchAddress = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`);
+      const data = await res.json();
+      setSearchResults(data);
+    } catch (err) {
+      console.error("Search failed", err);
+    }
+  };
+
+  const selectSearchResult = (result) => {
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    setCoords({ lat, lng });
+    setAddress(result.display_name);
+    setSearchQuery(result.display_name);
+    setSearchResults([]);
+    
+    if (mapInstanceRef.current && markerRef.current) {
+      mapInstanceRef.current.setView([lat, lng], 15);
+      markerRef.current.setLatLng([lat, lng]);
+    }
+  };
+
+  // GPS Location
+  const getCurrentLocation = () => {
+    setGettingLocation(true);
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setGettingLocation(false);
+          handlePinMove(latitude, longitude);
+          if (mapInstanceRef.current && markerRef.current) {
+            mapInstanceRef.current.setView([latitude, longitude], 16);
+            markerRef.current.setLatLng([latitude, longitude]);
+          }
+        },
+        (error) => {
+          console.error(error);
+          setGettingLocation(false);
+          alert("Could not get your location. Please allow location access.");
+        }
+      );
+    } else {
+      setGettingLocation(false);
+      alert("Geolocation is not supported by your browser.");
+    }
+  };
   
   // Load Leaflet dynamically
   useEffect(() => {
     if (window.L) {
-      setLeafletLoaded(true);
+      if (!leafletLoaded) setTimeout(() => setLeafletLoaded(true), 0);
       return;
     }
 
@@ -56,7 +122,7 @@ export default function DeliveryMap({
     return () => {
       // Cleanup omitted to keep leaflet cached
     };
-  }, []);
+  }, [leafletLoaded]);
 
   // Initialize Map
   useEffect(() => {
@@ -90,7 +156,7 @@ export default function DeliveryMap({
         }).addTo(map);
         markerRef.current = marker;
 
-        marker.on('dragend', function (event) {
+        marker.on('dragend', function () {
           const position = marker.getLatLng();
           handlePinMove(position.lat, position.lng);
         });
@@ -101,7 +167,7 @@ export default function DeliveryMap({
         });
         
         // Initial reverse geocode
-        if (!initialCustomerLocation) handlePinMove(coords.lat, coords.lng);
+        if (!initialCustomerLocation) setTimeout(() => handlePinMove(coords.lat, coords.lng), 0);
       }
     } else {
       // Update existing map view
@@ -113,7 +179,7 @@ export default function DeliveryMap({
       }
     }
 
-  }, [leafletLoaded, activeTab]); // Dependencies
+  }, [leafletLoaded, activeTab, coords.lat, coords.lng, initialCustomerLocation]); // Dependencies
 
   // Order Tracking Logic (OSRM Routing & Animation)
   useEffect(() => {
@@ -148,7 +214,6 @@ export default function DeliveryMap({
         if (data.routes && data.routes.length > 0) {
           const route = data.routes[0];
           const coordinates = route.geometry.coordinates.map(c => [c[1], c[0]]); // GeoJSON is [lng, lat]
-          setRouteCoordinates(coordinates);
 
           // Draw Route
           const polyline = L.polyline(coordinates, { color: '#4f46e5', weight: 5, opacity: 0.7, dashArray: '10, 10' }).addTo(map);
@@ -210,78 +275,10 @@ export default function DeliveryMap({
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [leafletLoaded, activeTab, coords]);
+  }, [leafletLoaded, activeTab, coords.lat, coords.lng, sellerLocation.lat, sellerLocation.lng, sellerLocation.label]);
 
 
-  // Reverse Geocoding via Nominatim
-  const handlePinMove = async (lat, lng) => {
-    setCoords({ lat, lng });
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
-      const data = await res.json();
-      if (data && data.display_name) {
-        setAddress(data.display_name);
-        setSearchQuery(data.display_name);
-      }
-    } catch (err) {
-      console.error("Geocoding failed", err);
-    }
-  };
 
-  // Search Address via Nominatim
-  const searchAddress = async (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    setSearching(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`);
-      const data = await res.json();
-      setSearchResults(data);
-    } catch (err) {
-      console.error("Search failed", err);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const selectSearchResult = (result) => {
-    const lat = parseFloat(result.lat);
-    const lng = parseFloat(result.lon);
-    setCoords({ lat, lng });
-    setAddress(result.display_name);
-    setSearchQuery(result.display_name);
-    setSearchResults([]);
-    
-    if (mapInstanceRef.current && markerRef.current) {
-      mapInstanceRef.current.setView([lat, lng], 15);
-      markerRef.current.setLatLng([lat, lng]);
-    }
-  };
-
-  // GPS Location
-  const getCurrentLocation = () => {
-    setGettingLocation(true);
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setGettingLocation(false);
-          handlePinMove(latitude, longitude);
-          if (mapInstanceRef.current && markerRef.current) {
-            mapInstanceRef.current.setView([latitude, longitude], 16);
-            markerRef.current.setLatLng([latitude, longitude]);
-          }
-        },
-        (error) => {
-          setGettingLocation(false);
-          alert("Could not get your location. Please allow location access.");
-        }
-      );
-    } else {
-      setGettingLocation(false);
-      alert("Geolocation is not supported by your browser.");
-    }
-  };
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 font-inter">

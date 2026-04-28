@@ -20,6 +20,8 @@ const {
   isAuthenticated
 } = require('../middlewares/authMiddleware');
 
+const { getPriceHistory, getBestTimeToBuy } = require('../controllers/priceController');
+
 const router = express.Router();
 
 
@@ -126,5 +128,9 @@ router.post(
   require('../controllers/productController').generateDescription
 );
 
+
+// 📈 Trending Intelligence
+router.get('/:productId/price-history', getPriceHistory);
+router.get('/:productId/best-time-to-buy', getBestTimeToBuy);
 
 module.exports = router;

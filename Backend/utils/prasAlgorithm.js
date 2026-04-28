@@ -1,15 +1,17 @@
+const axios = require("axios");
+
 const calculateReviewWeight = (review, product) => {
   let credibilityWeight = 0.5;
   let consistencyWeight = 0.5;
   let recencyWeight = 0.5;
   let needAlignmentWeight = 0.4;
 
-  // 1. Credibility (Based on length of comment, assuming longer reviews are more credible)
+  // 1. Credibility (Based on length of comment)
   const commentLength = review.comment ? review.comment.length : 0;
   if (commentLength > 100) credibilityWeight = 1.0;
   else if (commentLength > 50) credibilityWeight = 0.8;
   else if (commentLength > 10) credibilityWeight = 0.5;
-  else credibilityWeight = 0.2; // Likely spam or very low effort
+  else credibilityWeight = 0.2;
 
   // 2. Consistency (Sentiment matches rating)
   const sentiment = review.sentiment || "Neutral";
@@ -18,44 +20,39 @@ const calculateReviewWeight = (review, product) => {
   if (sentiment === "Positive" && rating >= 4) consistencyWeight = 1.0;
   else if (sentiment === "Negative" && rating <= 2) consistencyWeight = 1.0;
   else if (sentiment === "Neutral" && (rating === 3 || rating === 4)) consistencyWeight = 0.8;
-  else if (sentiment === "Positive" && rating <= 2) consistencyWeight = 0.1; // Highly inconsistent (e.g., sarcastic or spam)
-  else if (sentiment === "Negative" && rating >= 4) consistencyWeight = 0.1; // Highly inconsistent
+  else if (sentiment === "Positive" && rating <= 2) consistencyWeight = 0.1;
+  else if (sentiment === "Negative" && rating >= 4) consistencyWeight = 0.1;
   else consistencyWeight = 0.5;
 
   // 3. Recency (Newer reviews get higher weight)
   const reviewDate = review.createdAt ? new Date(review.createdAt) : new Date();
-  const currentDate = new Date();
-  const daysOld = Math.floor((currentDate - reviewDate) / (1000 * 60 * 60 * 24));
+  const daysOld = Math.floor((new Date() - reviewDate) / (1000 * 60 * 60 * 24));
 
   if (daysOld <= 30) recencyWeight = 1.0;
   else if (daysOld <= 90) recencyWeight = 0.8;
   else if (daysOld <= 365) recencyWeight = 0.6;
-  else recencyWeight = 0.3; // Very old reviews matter less
+  else recencyWeight = 0.3;
 
   // 4. Need Alignment (Mentions important features/keywords)
   const keywords = ["camera", "battery", "display", "build", "value", "performance", "screen", "fast", "slow", "quality", "price"];
-  // Add product specific keywords if available
   if (product && product.category) keywords.push(product.category.toLowerCase());
   if (product && product.brand) keywords.push(product.brand.toLowerCase());
 
   let keywordCount = 0;
   if (review.comment) {
     const commentLower = review.comment.toLowerCase();
-    keywords.forEach(kw => {
-      if (commentLower.includes(kw)) keywordCount++;
-    });
+    keywords.forEach(kw => { if (commentLower.includes(kw)) keywordCount++; });
   }
 
   if (keywordCount >= 3) needAlignmentWeight = 1.0;
   else if (keywordCount >= 1) needAlignmentWeight = 0.7;
   else needAlignmentWeight = 0.4;
 
-  // Total Weight Calculation (normalized between 0 and 1)
-  const totalWeight = credibilityWeight * consistencyWeight * recencyWeight * needAlignmentWeight;
-  return totalWeight;
+  return credibilityWeight * consistencyWeight * recencyWeight * needAlignmentWeight;
 };
 
-exports.calculateProductSmartScore = (reviews, product) => {
+// Heuristic fallback (original algorithm, returns 0-5 scale)
+const heuristicSmartScore = (reviews, product) => {
   if (!reviews || reviews.length === 0) return 0;
 
   let totalWeightedRating = 0;
@@ -68,10 +65,35 @@ exports.calculateProductSmartScore = (reviews, product) => {
   });
 
   if (totalWeightSum === 0) return 0;
+  const smartScore = totalWeightedRating / totalWeightSum;
+  return Math.round(Math.max(0, Math.min(5, smartScore)) * 10) / 10;
+};
 
-  let smartScore = totalWeightedRating / totalWeightSum;
-  
-  // Cap between 0 and 5, and round to 1 decimal place
-  smartScore = Math.max(0, Math.min(5, smartScore));
-  return Math.round(smartScore * 10) / 10;
+// PRAS v2: ML-based adaptive scoring (returns 0-5 scale for compatibility)
+exports.calculateProductSmartScore = async (reviews, product) => {
+  if (!reviews || reviews.length === 0) return 0;
+
+  try {
+    const posCount = reviews.filter(r => r.sentiment === "Positive").length;
+    const susCount = reviews.filter(r => r.isSuspicious).length;
+
+    const sentimentScore = posCount / reviews.length;
+    const fakePercentage = (susCount / reviews.length) * 100;
+    const reviewVolume = reviews.length;
+    const avgRating =
+      reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / reviews.length;
+
+    const response = await axios.post(
+      `${process.env.AI_SERVICE_URL}/pras-score`,
+      { sentiment_score: sentimentScore, fake_percentage: fakePercentage, review_volume: reviewVolume, avg_rating: avgRating },
+      { timeout: 3000 }
+    );
+
+    // ML service returns 0-100; normalize to 0-5 for DB compatibility
+    const mlScore = response.data.dynamic_score;
+    return Math.round((mlScore / 20) * 10) / 10; // 0-100 → 0-5
+  } catch (err) {
+    console.error("PRAS ML service unavailable. Using heuristic fallback.");
+    return heuristicSmartScore(reviews, product);
+  }
 };

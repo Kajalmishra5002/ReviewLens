@@ -2,13 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import Footer from "../components/Footer";
-import { Filter, SlidersHorizontal, ChevronDown, Search, ArrowRight, Zap, Star, Shield, Cpu, Activity, Smartphone, Laptop, Headphones, Tv, Gamepad2, Tablet } from "lucide-react";
+import SkeletonCard from "../components/SkeletonCard";
+import AIHighlightBanner from "../components/AIHighlightBanner";
+import api from "../api/axios";
+import { Filter, SlidersHorizontal, ChevronDown, Search, ArrowRight, Zap, Star, Shield, Cpu, Activity, Smartphone, Laptop, Headphones, Tv, Gamepad2, Tablet, Award } from "lucide-react";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Home() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
+  const [bestProducts, setBestProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bestLoading, setBestLoading] = useState(true);
   const [error, setError] = useState(null);
   const [heroSearch, setHeroSearch] = useState("");
 
@@ -21,12 +27,10 @@ export default function Home() {
   const [sortBy, setSortBy] = useState("Featured");
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/products")
+    // Fetch All Products
+    api.get("/products")
       .then((res) => {
-        if (!res.ok) throw new Error("Backend not running");
-        return res.json();
-      })
-      .then((data) => {
+        const data = res.data;
         const fetched = Array.isArray(data?.products) ? data.products : (Array.isArray(data) ? data : []);
         setProducts(fetched);
         setLoading(false);
@@ -35,6 +39,19 @@ export default function Home() {
         console.error("Failed to fetch products:", err.message);
         setError(err.message);
         setLoading(false);
+      });
+
+    // Fetch Best Rated Products
+    api.get("/products/best")
+      .then((res) => {
+        if (res.data.success) {
+          setBestProducts(res.data.products || []);
+        }
+        setBestLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch best products:", err.message);
+        setBestLoading(false);
       });
   }, []);
 
@@ -94,10 +111,9 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] bg-slate-50 dark:bg-[#0A101D]">
-        <div className="relative w-20 h-20">
-          <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
-          <div className="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="max-w-7xl mx-auto py-16 px-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
         </div>
       </div>
     );
@@ -240,6 +256,47 @@ export default function Home() {
             </button>
           ))}
         </div>
+      </section>
+
+      {/* 🤖 AI HIGHLIGHT BANNER */}
+      <AIHighlightBanner />
+
+      {/* ⭐ BEST RATED PRODUCTS */}
+      <section className="mt-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-3xl font-black flex items-center gap-2">
+              <Award className="w-8 h-8 text-yellow-500" /> Top Rated Picks
+            </h2>
+            <p className="text-slate-500 font-bold ml-10">Calculated using our proprietary PRAS algorithm</p>
+          </div>
+          <button onClick={() => handleQuickSearch("best")} className="text-indigo-500 font-black hover:underline flex items-center gap-1">
+            See All <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+        
+        {bestLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {bestProducts.length > 0 ? (
+              bestProducts.map((p) => (
+                <div key={p._id} className="relative group">
+                   <div className="absolute -top-3 -right-3 z-20 bg-yellow-400 text-yellow-900 font-black text-[10px] px-2 py-1 rounded-lg shadow-lg rotate-12 group-hover:rotate-0 transition-transform uppercase tracking-tighter">
+                      Top Rated
+                   </div>
+                   <ProductCard p={p} />
+                </div>
+              ))
+            ) : (
+              <p className="col-span-full text-center py-10 text-slate-500 font-medium bg-white dark:bg-[#111A2E] rounded-3xl border border-slate-200 dark:border-slate-800">
+                No high-rated products found yet.
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {/* 🛒 MAIN SHOP SECTION */}

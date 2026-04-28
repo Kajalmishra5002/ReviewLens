@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Star, BrainCircuit, CheckCircle2, MessageSquare, ThumbsUp, ThumbsDown } from "lucide-react";
 import toast from "react-hot-toast";
@@ -26,7 +26,6 @@ export default function Reviews() {
   const [selectedProductId, setSelectedProductId] = useState("");
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [reviewsLoading, setReviewsLoading] = useState(false);
   
   // Review form state
   const { activeUser } = useStore();
@@ -57,7 +56,12 @@ export default function Reviews() {
   useEffect(() => {
     if (selectedProductId) {
       const product = products.find(p => p._id === selectedProductId);
-      setReviews(product?.reviews || []);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setReviews(prev => {
+        const next = product?.reviews || [];
+        if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+        return next;
+      });
     }
   }, [selectedProductId, products]);
 
@@ -71,10 +75,13 @@ export default function Reviews() {
 
     setSubmitting(true);
     try {
-      // POST to the correct product reviews endpoint as defined in productRoutes.js
-      const res = await api.post(`/products/${selectedProductId}/reviews`, {
+      // POST to the correct reviews endpoint
+      await api.post(`/reviews`, {
+        productId: selectedProductId,
+        userId: activeUser._id,
+        name: activeUser.name,
         rating,
-        comment: reviewText
+        reviewText: reviewText
       });
       toast.success("Review submitted! AI analyzed your sentiment.");
       setRating(0);
@@ -251,9 +258,7 @@ export default function Reviews() {
               </div>
 
               <div className="flex-1 flex flex-col items-center justify-center min-h-[220px] relative z-10">
-                {reviewsLoading ? (
-                  <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                ) : totalRev > 0 ? (
+                {totalRev > 0 ? (
                   <Pie data={chartData} options={chartOptions} />
                 ) : (
                   <p className="text-slate-500 font-medium bg-slate-800/50 px-4 py-2 rounded-xl">No sentiment data available.</p>
@@ -310,11 +315,7 @@ export default function Reviews() {
             </div>
             
             <div className="overflow-y-auto pr-2 flex-1 space-y-4 custom-scrollbar">
-              {reviewsLoading ? (
-                <div className="flex justify-center py-10">
-                  <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              ) : reviews.length > 0 ? (
+              {reviews.length > 0 ? (
                 reviews.map((r) => {
                   let badgeCol = "bg-slate-800 text-slate-300 border-slate-700";
                   if(r.sentiment === 'Positive') badgeCol = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import api from "../api/axios";
 import ProductCard from "../components/ProductCard";
 import Footer from "../components/Footer";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function ProductListing({ type = "all" }) {
@@ -19,6 +20,7 @@ export default function ProductListing({ type = "all" }) {
 
   useEffect(() => {
     // Reset filters on type change
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchTerm("");
     setSelectedCategory("All");
     setSelectedBrand("All");
@@ -30,8 +32,7 @@ export default function ProductListing({ type = "all" }) {
       .then(res => {
         const prods = res.data.products || res.data || [];
         const enrichedProds = prods.map(p => {
-           const reviews = p.numOfReviews || p.reviews?.length || 0;
-           const sentiment = p.smartScore || p.sentimentScore || 75;
+
            return {
              ...p
            };

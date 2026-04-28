@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Check, Star, Zap, Smartphone, ChevronRight, Award, Camera, Battery, DollarSign, Monitor, Shield, Gamepad2, ArrowLeft, Sparkles, TrendingUp, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
 import useStore from "../store/useStore";
 import api from "../api/axios";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 
 const priorities = [
@@ -19,39 +20,39 @@ const priorities = [
 export default function Compare() {
   const { compareList, addToCompare, removeFromCompare } = useStore();
   const [allProducts, setAllProducts] = useState([]);
-  const [productAId, setProductAId] = useState("");
-  const [productBId, setProductBId] = useState("");
   const [activePriority, setActivePriority] = useState("Overall Best");
 
+  // Load all DB products for the dropdown selector and suggestions
   useEffect(() => {
     api.get("/products")
       .then(res => {
         const prods = res.data.products || res.data || [];
-        if (prods.length > 0) {
-          setAllProducts(prods);
-        }
+        setAllProducts(prods);
       })
       .catch(err => console.error("Failed to load products", err));
   }, []);
 
-  useEffect(() => {
-    if (allProducts.length > 0) {
-      if (compareList.length > 0) {
-        setProductAId(compareList[0]._id);
-        if (compareList.length > 1) {
-          setProductBId(compareList[1]._id);
-        } else {
-          setProductBId(""); 
-        }
-      } else {
-        setProductAId(allProducts[0]._id);
-        setProductBId("");
-      }
-    }
-  }, [allProducts, compareList]);
+  // Derive IDs directly from the store — no separate state needed
+  const productAId = compareList[0]?._id || "";
+  const productBId = compareList[1]?._id || "";
 
-  const pA = allProducts.find(p => p._id === productAId);
-  const pB = allProducts.find(p => p._id === productBId);
+  // Handlers for dropdown changes: update the compareList store
+  const handleProductAChange = (id) => {
+    const chosen = allProducts.find(p => p._id === id);
+    if (!chosen) return;
+    removeFromCompare(productAId);
+    addToCompare(chosen);
+  };
+
+  const handleProductBChange = (id) => {
+    if (!id) { removeFromCompare(productBId); return; }
+    const chosen = allProducts.find(p => p._id === id);
+    if (chosen) addToCompare(chosen);
+  };
+
+  // Resolve pA/pB: store first (handles ext_* products), then DB lookup
+  const pA = compareList.find(p => p._id === productAId) || allProducts.find(p => p._id === productAId) || null;
+  const pB = compareList.find(p => p._id === productBId) || allProducts.find(p => p._id === productBId) || null;
 
   const categoryProducts = allProducts.filter(p => pA && p.category === pA.category && p._id !== pA._id);
 
@@ -165,11 +166,7 @@ export default function Compare() {
             <div className="relative">
               <select
                 value={productAId}
-                onChange={(e) => {
-                  const newPA = allProducts.find(p => p._id === e.target.value);
-                  if (pB && newPA.category !== pB.category) setProductBId("");
-                  setProductAId(e.target.value);
-                }}
+                onChange={(e) => handleProductAChange(e.target.value)}
                 className="w-full appearance-none bg-slate-50 dark:bg-[#0A101D] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-bold rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 cursor-pointer"
               >
                 {allProducts.map(p => (
@@ -193,7 +190,7 @@ export default function Compare() {
             <div className="relative">
               <select
                 value={productBId}
-                onChange={(e) => setProductBId(e.target.value)}
+                onChange={(e) => handleProductBChange(e.target.value)}
                 disabled={!pA || categoryProducts.length === 0}
                 className="w-full appearance-none bg-slate-50 dark:bg-[#0A101D] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-bold rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 disabled:opacity-50 cursor-pointer"
               >
@@ -219,7 +216,7 @@ export default function Compare() {
                   <h4 className="font-bold text-sm line-clamp-1 mb-1">{p.name}</h4>
                   <div className="flex justify-between items-center mt-auto">
                     <span className="font-bold text-indigo-500 text-sm">₹{p.price?.toLocaleString()}</span>
-                    <button onClick={() => setProductBId(p._id)} className="text-xs bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg">
+                    <button onClick={() => handleProductBChange(p._id)} className="text-xs bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg">
                       Compare
                     </button>
                   </div>

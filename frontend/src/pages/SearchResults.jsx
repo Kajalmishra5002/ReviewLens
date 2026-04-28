@@ -3,8 +3,9 @@ import { useSearchParams, Link } from "react-router-dom";
 import { Sparkles, Camera, Battery, DollarSign, Zap, Monitor, Shield, Gamepad2, Award, ArrowLeft, Star, TrendingUp } from "lucide-react";
 import api from "../api/axios";
 import ProductCard from "../components/ProductCard";
+import SkeletonCard from "../components/SkeletonCard";
 import Footer from "../components/Footer";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 const priorities = [
   { id: "Overall Best", icon: Award },
@@ -23,20 +24,34 @@ export default function SearchResults() {
   
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null); // Added
   const [activePriority, setActivePriority] = useState("Overall Best");
 
   useEffect(() => {
     if (!query) return;
-    setLoading(true);
-    api.get(`/products/search?q=${encodeURIComponent(query)}`)
-      .then(res => {
-        setProducts(res.data.products || []);
+    
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const res = await api.get(`/products?keyword=${encodeURIComponent(query)}`);
+        console.log("Search API Response:", res.data); // Debug logging
+        
+        if (res.data.success) {
+          setProducts(res.data.products || []);
+        } else {
+          throw new Error(res.data.message || "Search failed");
+        }
+      } catch (err) {
+        console.error("Search failed:", err);
+        setError(err.message || "Something went wrong while searching.");
+      } finally {
         setLoading(false);
-      })
-      .catch(err => {
-        console.error("Search failed", err);
-        setLoading(false);
-      });
+      }
+    };
+
+    fetchProducts();
   }, [query]);
 
   const sortedProducts = useMemo(() => {
@@ -78,12 +93,15 @@ export default function SearchResults() {
 
   if (loading) {
      return (
-      <div className="flex items-center justify-center min-h-[60vh] bg-slate-50 dark:bg-[#0A101D]">
-        <div className="relative w-16 h-16">
-          <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
-          <div className="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      </div>
+       <div className="max-w-6xl mx-auto px-4 lg:px-8 py-10">
+         <div className="h-8 w-64 bg-slate-200 dark:bg-slate-800 rounded-full animate-pulse mb-8"></div>
+         <div className="h-32 w-full bg-slate-100 dark:bg-slate-800/50 rounded-3xl animate-pulse mb-10"></div>
+         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+           {[...Array(8)].map((_, i) => (
+             <SkeletonCard key={i} />
+           ))}
+         </div>
+       </div>
     );
   }
 
@@ -152,8 +170,21 @@ export default function SearchResults() {
           </div>
         </div>
 
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center">
+            <p className="text-red-600 dark:text-red-400 font-bold">{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 px-6 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors"
+            >
+              Retry Search
+            </button>
+          </div>
+        )}
+
         {/* Top Product Hero Card */}
-        {topProduct && (
+        {!error && topProduct && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -165,38 +196,38 @@ export default function SearchResults() {
             
             <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
               <div className="w-full md:w-1/3 bg-slate-50 dark:bg-[#0A101D] rounded-2xl p-6 flex items-center justify-center border border-slate-100 dark:border-slate-800/50 relative">
-                 <img src={topProduct.images?.[0]?.url || 'https://via.placeholder.com/300'} alt={topProduct.name} className="w-full max-h-64 object-contain mix-blend-multiply dark:mix-blend-normal" />
+                 <img src={topProduct?.images?.[0]?.url || 'https://via.placeholder.com/300'} alt={topProduct?.name} className="w-full max-h-64 object-contain mix-blend-multiply dark:mix-blend-normal" />
                  {/* PRAS Badge overlay */}
                  <div className="absolute bottom-4 left-4 bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 font-black px-3 py-1.5 rounded-lg flex items-center gap-1.5 backdrop-blur-md">
-                    <Sparkles className="w-4 h-4" /> PRAS {topProduct.smartScore || 0}
+                    <Sparkles className="w-4 h-4" /> PRAS {topProduct?.smartScore || 0}
                  </div>
               </div>
 
               <div className="w-full md:w-2/3 flex flex-col justify-center">
                 <div className="flex items-center gap-2 mb-2">
-                   <span className="text-xs font-bold text-indigo-500 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded">{topProduct.brand || "Generic"}</span>
+                   <span className="text-xs font-bold text-indigo-500 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded">{topProduct?.brand || "Generic"}</span>
                 </div>
                 <h2 className="text-2xl md:text-3xl font-black mb-4 leading-tight">
-                  <Link to={`/product/${topProduct._id}`} className="hover:text-indigo-500 transition-colors">
-                    {topProduct.name}
+                  <Link to={`/product/${topProduct?._id}`} className="hover:text-indigo-500 transition-colors">
+                    {topProduct?.name}
                   </Link>
                 </h2>
                 
                 <p className="text-slate-600 dark:text-slate-400 text-sm font-medium mb-6 line-clamp-3 leading-relaxed">
-                  {topProduct.description}
+                  {topProduct?.description}
                 </p>
                 
                 <div className="flex items-end gap-4 mb-8">
-                  <span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">₹{topProduct.price?.toLocaleString('en-IN')}</span>
-                  {topProduct.ratings && (
+                  <span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">₹{topProduct?.price?.toLocaleString('en-IN')}</span>
+                  {topProduct?.ratings && (
                     <div className="flex items-center gap-1 text-sm font-bold text-slate-500 mb-1">
-                       <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" /> {Number(topProduct.ratings).toFixed(1)} / 5
+                       <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" /> {Number(topProduct?.ratings).toFixed(1)} / 5
                     </div>
                   )}
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <Link to={`/product/${topProduct._id}`} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 py-3.5 rounded-xl shadow-lg shadow-indigo-500/30 transition-transform active:scale-95 flex items-center gap-2">
+                  <Link to={`/product/${topProduct?._id}`} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 py-3.5 rounded-xl shadow-lg shadow-indigo-500/30 transition-transform active:scale-95 flex items-center gap-2">
                     View Details
                   </Link>
                 </div>
@@ -206,12 +237,12 @@ export default function SearchResults() {
         )}
 
         {/* Remaining Products Grid */}
-        {remainingProducts.length > 0 && (
+        {!error && remainingProducts.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-4">
             <AnimatePresence>
               {remainingProducts.map((p, index) => (
                 <motion.div 
-                  key={p._id}
+                  key={p?._id}
                   layout
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -228,7 +259,8 @@ export default function SearchResults() {
           </div>
         )}
 
-        {products.length === 0 && (
+        {/* No Products Found */}
+        {!error && products.length === 0 && (
           <div className="text-center py-20 bg-white dark:bg-[#111A2E] rounded-3xl border border-slate-200 dark:border-slate-800">
             <h3 className="text-2xl font-black text-slate-500 mb-2">No products found for "{query}"</h3>
             <p className="text-slate-400 font-medium">Try searching for a different term or brand.</p>

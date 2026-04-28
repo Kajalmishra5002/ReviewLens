@@ -1,6 +1,8 @@
 const Product = require('../models/Product');
+const Review = require('../models/Review');
 const axios = require('axios');
 const { calculateProductSmartScore } = require('../utils/prasAlgorithm');
+const { recordPriceSnapshot } = require('./priceController');
 
 const catchAsyncErrors = require('../middlewares/catchAsyncError');
 const { ErrorHandler } = require('../middlewares/errorMiddleware');
@@ -78,14 +80,29 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-// ================= GET ALL PRODUCTS =================
+// ================= GET ALL PRODUCTS (Enhanced Search) =================
 exports.fetchAllProducts = catchAsyncErrors(async (req, res) => {
-  const products = await Product.find();
+  const { keyword } = req.query;
   
-  console.log("Fetched products successfully, count:", products.length);
+  let query = {};
+  if (keyword) {
+    query = {
+      $or: [
+        { name: { $regex: keyword, $options: "i" } },
+        { brand: { $regex: keyword, $options: "i" } },
+        { category: { $regex: keyword, $options: "i" } },
+        { description: { $regex: keyword, $options: "i" } }
+      ]
+    };
+  }
+
+  const products = await Product.find(query);
+  
+  console.log(`Fetched products for keyword "${keyword || ''}", count: ${products.length}`);
 
   res.status(200).json({
     success: true,
+    count: products.length,
     products
   });
 });
@@ -117,7 +134,7 @@ exports.fetchSearchProducts = async (req, res) => {
     const extRes = await axios.get(`https://dummyjson.com/products/search?q=${keyword}`);
     const items = extRes.data.products || [];
     
-    externalProducts = items.map(item => {
+    externalProducts = await Promise.all(items.map(async item => {
       // Normalize to our schema
       const normalizedReviews = (item.reviews || []).map(r => ({
         user: r.reviewerEmail || "guest@example.com",
@@ -144,9 +161,9 @@ exports.fetchSearchProducts = async (req, res) => {
       };
 
       // Apply PRAS
-      productObj.smartScore = calculateProductSmartScore(productObj.reviews, productObj) || item.rating;
+      productObj.smartScore = (await calculateProductSmartScore(productObj.reviews, productObj)) || item.rating;
       return productObj;
-    });
+    }));
 
   } catch (error) {
     console.error("External API search failed", error);
@@ -184,11 +201,14 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Product not found", 404));
   }
 
-  product = await Product.findByIdAndUpdate(
-    req.params.productId,
-    req.body,
-    { new: true }
-  );
+  product = await Product.findById(req.params.productId);
+  // Apply updates to product
+  Object.assign(product, req.body);
+  // Record price snapshot if price is being changed
+  if (req.body.price !== undefined) {
+    await recordPriceSnapshot(product);
+  }
+  await product.save();
 
   res.status(200).json({
     success: true,
@@ -224,16 +244,44 @@ exports.postProductReview = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Product not found", 404));
   }
 
-  // 🤖 SENTIMENT ANALYSIS
+  // 🤖 SENTIMENT & FAKE DETECTION
   let sentiment = "Neutral";
+  let isSuspicious = false;
   try {
+    // 1. Sentiment
     const aiRes = await axios.post(
       `${process.env.AI_SERVICE_URL}/analyze`,
       { text: comment }
     );
     sentiment = aiRes.data.sentiment;
+
+    // 2. Fake Detection
+    // Prepare recent reviews for context (to detect text similarity/timing)
+    const recentReviews = product.reviews.slice(-20).map(r => ({
+      id: r._id.toString(),
+      text: r.comment,
+      user_id: r.user.toString(),
+      timestamp: r.createdAt ? r.createdAt.toISOString() : new Date().toISOString()
+    }));
+    
+    // Add current review to the batch
+    recentReviews.push({
+      id: "current",
+      text: comment,
+      user_id: req.user._id.toString(),
+      timestamp: new Date().toISOString()
+    });
+
+    const fakeRes = await axios.post(
+      `${process.env.AI_SERVICE_URL}/detect-fake-reviews`,
+      { reviews: recentReviews }
+    );
+    
+    if (fakeRes.data.flagged_review_ids.includes("current")) {
+      isSuspicious = true;
+    }
   } catch (err) {
-    console.log("AI sentiment failed, defaulting to Neutral");
+    console.log("AI features failed, using defaults", err.message);
   }
 
   const review = {
@@ -241,7 +289,8 @@ exports.postProductReview = catchAsyncErrors(async (req, res, next) => {
     name: req.user.name,
     rating: Number(rating),
     comment,
-    sentiment // ✅ ADDED
+    sentiment,
+    isSuspicious
   };
 
   const isReviewed = product.reviews.find(
@@ -253,29 +302,60 @@ exports.postProductReview = catchAsyncErrors(async (req, res, next) => {
       if (r.user.toString() === req.user._id.toString()) {
         r.rating = rating;
         r.comment = comment;
-        r.sentiment = sentiment; // ✅ UPDATE SENTIMENT
+        r.sentiment = sentiment;
+        r.isSuspicious = isSuspicious;
       }
     });
   } else {
     product.reviews.push(review);
   }
 
-  // ✅ FIX: Always update review count
+  // ✅ 2. Sync with standalone Review collection
+  await Review.findOneAndUpdate(
+    { productId: product._id, userId: req.user._id },
+    {
+      productId: product._id,
+      userId: req.user._id,
+      name: req.user.name,
+      rating: Number(rating),
+      reviewText: comment,
+      sentiment: sentiment,
+      isSuspicious: isSuspicious
+    },
+    { upsert: true, new: true }
+  );
+
+  // ✅ 3. Always update review count
   product.numOfReviews = product.reviews.length;
 
   // ⭐ Recalculate rating and smartScore
   product.ratings =
-    product.reviews.reduce((acc, r) => acc + r.rating, 0) /
+    product.reviews.reduce((acc, r) => acc + (r.rating || 0), 0) /
     product.reviews.length;
     
   // 🧠 Recalculate PRAS Smart Score
-  product.smartScore = calculateProductSmartScore(product.reviews, product);
+  product.smartScore = await calculateProductSmartScore(product.reviews, product);
+
+  // 🔮 Generate AI Insights (Explainable AI)
+  try {
+     const insightsRes = await axios.post(
+       `${process.env.AI_SERVICE_URL}/generate-insights`,
+       { reviews: product.reviews.map(r => r.comment) }
+     );
+     product.aiInsights = {
+       ...insightsRes.data,
+       lastGenerated: new Date()
+     };
+  } catch (e) {
+     console.log("AI Insights generation failed");
+  }
 
   await product.save();
 
   res.status(200).json({
     success: true,
-    message: "Review added with sentiment analysis"
+    message: isSuspicious ? "Review posted (Flagged as suspicious by AI)" : "Review added with sentiment analysis",
+    review
   });
 });
 
@@ -296,8 +376,11 @@ exports.deleteReview = catchAsyncErrors(async (req, res, next) => {
       ? 0
       : reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
 
+  // ✅ 2. Delete from standalone collection
+  await Review.deleteOne({ productId: product._id, user: req.user._id });
+
   // 🧠 Recalculate PRAS Smart Score
-  product.smartScore = calculateProductSmartScore(reviews, product);
+  product.smartScore = await calculateProductSmartScore(reviews, product);
 
   await product.save();
 
@@ -324,20 +407,16 @@ exports.fetchAIFilteredProducts = catchAsyncErrors(async (req, res) => {
 
 // ================= ⭐ BEST PRODUCTS =================
 exports.getBestProducts = catchAsyncErrors(async (req, res) => {
-  const products = await Product.find();
-
-  const scored = products.map(p => {
-    // Prioritize smartScore but give some weight to number of reviews to avoid 1-review 5.0s dominating
-    const score = (p.smartScore || 0) * 0.8 + Math.min(p.numOfReviews || 0, 50) * 0.05;
-
-    return { ...p._doc, score };
-  });
-
-  const sorted = scored.sort((a, b) => b.score - a.score);
+  // Fetch top products sorted by smartScore
+  // We filter products with at least 5 reviews for "Best" status credibility
+  const products = await Product.find()
+    .sort({ smartScore: -1, ratings: -1 })
+    .limit(10);
 
   res.json({
     success: true,
-    products: sorted.slice(0, 5)
+    count: products.length,
+    products
   });
 });
 
@@ -385,17 +464,26 @@ exports.generateDescription = catchAsyncErrors(async (req, res) => {
 });
 
 // ================= PRODUCT COMPARISON =================
-exports.compareProducts = async (req, res) => {
+exports.compareProducts = catchAsyncErrors(async (req, res, next) => {
   const { id1, id2 } = req.params;
 
   const p1 = await Product.findById(id1);
   const p2 = await Product.findById(id2);
 
-  res.json({
-    price: p1.price < p2.price ? p1.name : p2.name,
-    rating: p1.rating > p2.rating ? p1.name : p2.name,
+  if (!p1 || !p2) {
+    return next(new ErrorHandler("Product(s) not found for comparison", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    comparison: {
+      price: p1.price < p2.price ? p1.name : p2.name,
+      rating: (p1.ratings || 0) > (p2.ratings || 0) ? p1.name : p2.name,
+      smartScore: (p1.smartScore || 0) > (p2.smartScore || 0) ? p1.name : p2.name,
+      products: [p1, p2]
+    }
   });
-};
+});
 
 // ================= GET SELLER PRODUCTS =================
 exports.getSellerProducts = catchAsyncErrors(async (req, res, next) => {

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Star, TrendingUp, Award } from "lucide-react";
-import { motion } from "framer-motion";
+
 
 export default function DashboardProductCard({ p, badgeType }) {
   if (!p) return null;
@@ -12,18 +12,14 @@ export default function DashboardProductCard({ p, badgeType }) {
   const positiveScore = p.smartScore || p.sentimentScore || 75;
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
+    <div 
       className="bg-white dark:bg-[#111A2E] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group relative"
     >
       <Link to={`/product/${p._id}`} className="absolute inset-0 z-0"></Link>
 
       {/* Image Container */}
       <div className="relative h-48 bg-slate-50 dark:bg-[#0A101D] p-6 flex items-center justify-center group-hover:bg-slate-100 dark:group-hover:bg-[#1C2333] transition-colors">
-        <motion.img
-          whileHover={{ scale: 1.05 }}
+        <img
           src={p?.images?.[0]?.url || p?.image || "https://via.placeholder.com/300"}
           alt={p?.name || "Product"}
           className="object-contain h-full w-full drop-shadow-md relative z-10"
@@ -74,6 +70,6 @@ export default function DashboardProductCard({ p, badgeType }) {
           <div className="h-1.5 flex-1 bg-red-500 rounded-full"></div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

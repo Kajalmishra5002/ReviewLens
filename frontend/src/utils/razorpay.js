@@ -74,7 +74,7 @@ export const handleRazorpayCheckout = async (
               { id: "verify" }
             );
           }
-        } catch (err) {
+        } catch {
           toast.error("Verification error", { id: "verify" });
         }
       },

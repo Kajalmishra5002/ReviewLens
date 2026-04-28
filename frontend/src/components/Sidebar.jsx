@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Scale, TrendingUp, User, Settings, Sparkles, MessageSquare } from "lucide-react";
-import { motion } from "framer-motion";
+
 
 export default function Sidebar() {
   const location = useLocation();
@@ -47,8 +47,7 @@ export default function Sidebar() {
 
       {/* Pro Tip Card */}
       <div className="p-4 mb-4">
-        <motion.div 
-          whileHover={{ scale: 1.02 }}
+        <div 
           className="bg-white/10 border border-white/20 rounded-2xl p-4 shadow-lg backdrop-blur-sm"
         >
           <div className="flex items-center gap-2 mb-2">
@@ -58,7 +57,7 @@ export default function Sidebar() {
           <p className="text-xs text-indigo-100 leading-relaxed">
             Compare products to find the best deals!
           </p>
-        </motion.div>
+        </div>
       </div>
     </aside>
   );

@@ -1,14 +1,19 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Star, MessageSquareText, ThumbsUp, ThumbsDown, ArrowLeft, BrainCircuit, ShoppingCart, TrendingUp, Check, ShieldCheck, Zap, X } from "lucide-react";
+import { Star, MessageSquareText, ThumbsUp, ThumbsDown, ArrowLeft, BrainCircuit, ShoppingCart, TrendingUp, Check, ShieldCheck, Zap, X, AlertTriangle, TrendingDown } from "lucide-react";
 import useStore from "../store/useStore";
+import api from "../api/axios";
 import toast from "react-hot-toast";
+import SkeletonCard from "../components/SkeletonCard";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
+import PriceHistoryChart from "../components/PriceHistoryChart";
 
 export default function ProductDetail() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [xaiInsights, setXaiInsights] = useState(null);
   const [mainImage, setMainImage] = useState("");
   const { addToCompare, compareList, addToCart } = useStore();
   const navigate = useNavigate();
@@ -36,15 +41,10 @@ export default function ProductDetail() {
     addToCart(product);
     navigate('/cart');
   };
-
   useEffect(() => {
-    fetch(`http://localhost:5000/api/products/${id}`)
+    api.get(`/products/${id}`)
       .then(res => {
-        if (!res.ok) throw new Error("Backend not running");
-        return res.json();
-      })
-      .then(data => {
-        const prod = data.product || data;
+        const prod = res.data.product || res.data;
         setProduct(prod);
         setMainImage(prod.images?.[0]?.url || prod.image || "https://via.placeholder.com/600");
         setLoading(false);
@@ -120,11 +120,21 @@ export default function ProductDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="relative w-20 h-20">
-          <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
-          <div className="absolute inset-0 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      <div className="max-w-7xl mx-auto py-16 px-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+           <div className="h-[500px] bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 animate-pulse rounded-3xl"></div>
+           <div className="space-y-6">
+              <div className="h-6 w-24 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-full"></div>
+              <div className="h-14 w-full bg-slate-200 dark:bg-slate-800 animate-pulse rounded-2xl"></div>
+              <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-xl"></div>
+              <div className="h-40 w-full bg-slate-100 dark:bg-slate-800/50 animate-pulse rounded-3xl"></div>
+              <div className="flex gap-4">
+                 <div className="h-16 flex-1 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-2xl"></div>
+                 <div className="h-16 flex-1 bg-indigo-500/20 animate-pulse rounded-2xl"></div>
+              </div>
+           </div>
         </div>
+        <div className="mt-16 h-64 w-full bg-slate-50 dark:bg-[#0A101D] animate-pulse rounded-3xl border border-slate-200 dark:border-slate-800"></div>
       </div>
     );
   }
@@ -205,14 +215,34 @@ export default function ProductDetail() {
               <span className="text-xs opacity-80 font-semibold ml-1">({product.reviews?.length || 0} Reviews)</span>
             </div>
 
-            {product.sentimentScore && (
-              <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-500/10 dark:to-teal-500/10 px-4 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-500/20 shadow-sm">
-                <BrainCircuit className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span className="font-bold text-emerald-800 dark:text-emerald-300 text-sm">
-                  AI Score: {product.sentimentScore}% Positive
-                </span>
-              </div>
-            )}
+            {/* PRAS Circular Grade Badge */}
+            {product.smartScore > 0 && (() => {
+              const s = (product.smartScore / 5) * 100;
+              const grade = s >= 90 ? "A+" : s >= 80 ? "A" : s >= 65 ? "B" : s >= 50 ? "C" : "D";
+              const gradeColor = s >= 80 ? "text-emerald-600 dark:text-emerald-400" : s >= 65 ? "text-indigo-600 dark:text-indigo-400" : s >= 50 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400";
+              const gradeBg = s >= 80 ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30" : s >= 65 ? "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30" : s >= 50 ? "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30" : "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30";
+              const barColor = s >= 80 ? "bg-emerald-500" : s >= 65 ? "bg-indigo-500" : s >= 50 ? "bg-amber-500" : "bg-red-500";
+              return (
+                <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl border shadow-sm ${gradeBg}`}>
+                  {/* Grade Circle */}
+                  <div className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-xl ${gradeColor} border-current`}>
+                    {grade}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <BrainCircuit className={`w-3.5 h-3.5 ${gradeColor}`} />
+                      <span className={`text-xs font-black uppercase tracking-widest ${gradeColor}`}>PRAS Score</span>
+                      {s >= 65 ? <TrendingUp className="w-3.5 h-3.5 text-emerald-500" /> : <TrendingDown className="w-3.5 h-3.5 text-red-500" />}
+                    </div>
+                    {/* Confidence bar */}
+                    <div className="w-24 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${Math.round(s)}%` }} />
+                    </div>
+                    <p className={`text-[10px] font-bold mt-0.5 ${gradeColor}`}>{Math.round(s)}% Confidence</p>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="text-4xl font-black text-slate-900 dark:text-white mb-8 flex items-end gap-3">
@@ -290,6 +320,75 @@ export default function ProductDetail() {
           )}
         </motion.div>
       </div>
+
+      {/* Explainable AI (XAI) Section */}
+      {product?.aiInsights && (
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-16 bg-gradient-to-br from-slate-50 to-white dark:from-[#0A101D] dark:to-[#111A2E] rounded-3xl border border-slate-200 dark:border-slate-800 p-8 md:p-12 shadow-sm relative overflow-hidden"
+        >
+          <div className="flex items-center gap-3 mb-8">
+            <div className="bg-indigo-600 p-2 rounded-lg"><BrainCircuit className="w-6 h-6 text-white" /></div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white">Explainable AI Insights</h2>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* AI Summary */}
+            <div className="lg:col-span-1 bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm">
+               <h3 className="font-bold text-indigo-600 dark:text-indigo-400 mb-3 flex items-center gap-2">
+                 <Zap className="w-4 h-4" /> AI Summary
+               </h3>
+               <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+                 {product.aiInsights.summary}
+               </p>
+               {product.aiInsights.lastGenerated && (
+                 <p className="text-[10px] text-slate-400 mt-4 uppercase tracking-tighter">Last analyzed: {new Date(product.aiInsights.lastGenerated).toLocaleDateString()}</p>
+               )}
+            </div>
+
+            {/* Positive Highlights */}
+            <div className="bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm">
+              <h3 className="font-bold text-emerald-600 dark:text-emerald-400 mb-4 flex items-center gap-2">
+                <ThumbsUp className="w-4 h-4" /> Positive Sentiment
+              </h3>
+              {product.aiInsights.positiveHighlights?.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {product.aiInsights.positiveHighlights.map(h => (
+                    <span key={h} className="px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-full border border-emerald-100 dark:border-emerald-500/20">
+                      {h}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 italic">Not enough positive data</p>
+              )}
+            </div>
+
+            {/* Negative Highlights */}
+            <div className="bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm">
+              <h3 className="font-bold text-red-600 dark:text-red-400 mb-4 flex items-center gap-2">
+                <ThumbsDown className="w-4 h-4" /> Areas for Improvement
+              </h3>
+              {product.aiInsights.negativeHighlights?.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {product.aiInsights.negativeHighlights.map(h => (
+                    <span key={h} className="px-3 py-1 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-bold rounded-full border border-red-100 dark:border-red-500/20">
+                      {h}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 italic">No significant concerns</p>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Price History & Best Time to Buy */}
+      <PriceHistoryChart productId={id} />
 
       {/* Customer Reviews & Sentiment Analysis Section */}
       <motion.div 
@@ -443,6 +542,7 @@ export default function ProductDetail() {
                 const rName = isObj ? (r.userName || r.name) : "Verified Buyer";
                 const rRating = isObj ? (r.rating || 5) : 5;
                 const sentiment = isObj ? (r.sentiment || "Positive") : "Positive";
+                const isSuspicious = isObj ? !!r.isSuspicious : false;
                 
                 let badgeStyle = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700";
                 if(sentiment === 'Positive') badgeStyle = "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20";
@@ -450,7 +550,14 @@ export default function ProductDetail() {
                 else badgeStyle = "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 border-yellow-200 dark:border-yellow-500/20";
 
                 return (
-                  <div key={`review-${i}`} className="bg-slate-50 dark:bg-[#0A101D] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between hover:border-indigo-500/30 transition-colors">
+                  <div key={`review-${i}`} className={`bg-slate-50 dark:bg-[#0A101D] p-6 rounded-2xl border flex flex-col justify-between hover:border-indigo-500/30 transition-colors ${isSuspicious ? 'border-red-300 dark:border-red-500/30 bg-red-50/30 dark:bg-red-500/5' : 'border-slate-200 dark:border-slate-800'}`}>
+                    {/* Fake Review Warning */}
+                    {isSuspicious && (
+                      <div className="flex items-center gap-2 text-xs font-black text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg px-3 py-1.5 mb-3">
+                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                        ⚠ Potential Fake Review
+                      </div>
+                    )}
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex flex-col gap-1.5">
@@ -465,7 +572,7 @@ export default function ProductDetail() {
                           {sentiment}
                         </span>
                       </div>
-                      <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed italic font-medium">"{cmt}"</p>
+                      <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed italic font-medium">&quot;{cmt}&quot;</p>
                     </div>
                   </div>
                 );

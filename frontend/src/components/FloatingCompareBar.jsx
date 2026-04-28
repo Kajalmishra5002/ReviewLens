@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { X, ArrowRight, List } from "lucide-react";
 import useStore from "../store/useStore";
 
@@ -10,11 +10,7 @@ export default function FloatingCompareBar() {
   return (
     <AnimatePresence>
       {compareList?.length > 0 && (
-        <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        <div
           className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-4xl"
         >
           <div className="bg-white/80 dark:bg-[#0A101D]/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl p-4 flex flex-col md:flex-row items-center gap-4 justify-between">
@@ -25,7 +21,7 @@ export default function FloatingCompareBar() {
               </div>
               
               <div className="flex gap-3 overflow-x-auto scrollbar-hide py-1">
-                {compareList?.map((product, index) => (
+                {compareList?.map((product) => (
                   <div key={product._id} className="relative bg-slate-50 dark:bg-[#111A2E] border border-slate-200 dark:border-slate-700 rounded-xl p-2 flex items-center gap-3 min-w-[150px] max-w-[200px] flex-shrink-0 group">
                     <button 
                       onClick={() => removeFromCompare(product._id)}
@@ -73,7 +69,7 @@ export default function FloatingCompareBar() {
             </div>
 
           </div>
-        </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import useStore from "../store/useStore";
 import api from "../api/axios";
 import ThemeToggle from "./ThemeToggle";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 
 export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -36,7 +36,8 @@ export default function Navbar() {
 
   useEffect(() => {
     if (searchQuery.length < 2) {
-      setSearchResults([]);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (searchResults.length > 0) setSearchResults([]);
       return;
     }
     const debounce = setTimeout(async () => {
@@ -48,13 +49,11 @@ export default function Navbar() {
       }
     }, 300);
     return () => clearTimeout(debounce);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
   return (
-    <motion.nav 
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ type: "spring", stiffness: 100, damping: 20 }}
+    <nav 
       className={`sticky top-0 z-50 w-full transition-all duration-300 ${
         isScrolled 
           ? "bg-white/70 dark:bg-[#0A101D]/70 backdrop-blur-xl border-b border-white/20 dark:border-slate-800/50 shadow-sm" 
@@ -108,10 +107,7 @@ export default function Navbar() {
             
             <AnimatePresence>
               {isSearchOpen && searchResults.length > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
+                <div 
                   className="absolute left-0 right-0 top-full mt-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111A2E] shadow-2xl overflow-hidden z-50"
                 >
                   {searchResults.slice(0, 5).map(item => (
@@ -135,7 +131,7 @@ export default function Navbar() {
                       </div>
                     </Link>
                   ))}
-                </motion.div>
+                </div>
               )}
             </AnimatePresence>
         </div>
@@ -147,13 +143,11 @@ export default function Navbar() {
           <Link to="/cart" className="relative group p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <ShoppingCart className="w-6 h-6 text-slate-600 dark:text-slate-300 group-hover:text-primary transition-colors" />
             {cart?.length > 0 && (
-              <motion.span 
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
+              <span 
                 className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white shadow-lg border-2 border-white dark:border-[#0A101D]"
               >
                 {cart.length}
-              </motion.span>
+              </span>
             )}
           </Link>
 
@@ -170,7 +164,7 @@ export default function Navbar() {
                     <p className="text-xs text-slate-500 truncate mt-0.5">{activeUser.email}</p>
                   </div>
                   <div className="p-2 space-y-1">
-                    {(activeUser.role === "Seller" || activeUser.role === "Admin" || true) && (
+                    {(activeUser.role === "Seller" || activeUser.role === "Admin") && (
                       <button 
                         onClick={() => navigate("/add-product")} 
                         className="w-full text-left block px-3 py-2.5 text-sm text-primary font-medium hover:bg-primary/10 rounded-xl transition-colors"
@@ -207,6 +201,6 @@ export default function Navbar() {
         </div>
 
       </div>
-    </motion.nav>
+    </nav>
   );
 }

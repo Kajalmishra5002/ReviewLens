@@ -31,7 +31,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await api.post("/auth/login", { email, password });
+      const res = await api.post("/users/login", { email, password });
       
       // Save token (if backend returns it, else it sets cookies, we still save user)
       if (res?.data?.token) {
@@ -138,7 +138,7 @@ export default function Login() {
                 onClick={async () => {
                   setLoading(true);
                   try {
-                    const res = await api.post("/auth/google-login", { 
+                    const res = await api.post("/users/google-login", { 
                       email: "google@test.com", 
                       name: "Google User" 
                     });

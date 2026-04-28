@@ -14,11 +14,15 @@ export default function Settings() {
 
   useEffect(() => {
     if (activeUser) {
-      setEditForm({ 
-        name: activeUser.name || "", 
-        email: activeUser.email || "",
-        gender: activeUser.gender || "Male",
-        mobileNumber: activeUser.mobileNumber || ""
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setEditForm(prev => {
+        if (prev.name === activeUser.name && prev.email === activeUser.email) return prev;
+        return { 
+          name: activeUser.name || "", 
+          email: activeUser.email || "",
+          gender: activeUser.gender || "Male",
+          mobileNumber: activeUser.mobileNumber || ""
+        };
       });
     }
   }, [activeUser]);

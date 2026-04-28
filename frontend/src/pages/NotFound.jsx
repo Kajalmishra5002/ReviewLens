@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 
 export default function NotFound() {

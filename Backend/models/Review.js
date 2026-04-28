@@ -36,6 +36,11 @@ const reviewSchema = new mongoose.Schema({
     default: "Neutral" // AI calculated
   },
 
+  isSuspicious: {
+    type: Boolean,
+    default: false
+  },
+
   createdAt: {
     type: Date,
     default: Date.now

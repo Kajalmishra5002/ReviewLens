@@ -13,6 +13,7 @@ const sendEmail = require('../utils/sendEmail');
 
 // ================= REGISTER =================
 exports.register = catchAsyncErrors(async (req, res, next) => {
+  console.log("Registration Request Body:", req.body);
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
@@ -37,12 +38,14 @@ exports.register = catchAsyncErrors(async (req, res, next) => {
   });
 
   // Bypassing email verification for now since isVerified is true
+  console.log("User created successfully:", user._id);
   sendToken(user, 201, "Registration successful", res);
 });
 
 
 // ================= LOGIN =================
 exports.login = catchAsyncErrors(async (req, res, next) => {
+  console.log("Login Request Body:", { email: req.body.email }); // Don't log password
   const { email, password } = req.body;
 
   if (!email || !password) {

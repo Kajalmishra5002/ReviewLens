@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
   Package, Image as ImageIcon, Sparkles, Tag, DollarSign, 
@@ -116,7 +116,7 @@ export default function AddProduct() {
         description: res.data.description
       }));
       toast.success("Description generated successfully!");
-    } catch (err) {
+    } catch {
       toast.error("Failed to generate description via AI");
     } finally {
       setGenerating(false);

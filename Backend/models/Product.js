@@ -24,6 +24,10 @@ const reviewSchema = new mongoose.Schema({
   sentiment: {
     type: String, // Positive / Negative / Neutral (AI)
     default: "Neutral"
+  },
+  isSuspicious: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 
@@ -104,6 +108,22 @@ const productSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+
+  // 📈 Price History for Trending Intelligence
+  priceHistory: [
+    {
+      price: { type: Number, required: true },
+      date: { type: Date, default: Date.now }
+    }
+  ],
+
+  // 🤖 AI Insights (Explainable AI)
+  aiInsights: {
+    positiveHighlights: [String],
+    negativeHighlights: [String],
+    summary: String,
+    lastGenerated: Date
   },
 
   createdAt: {

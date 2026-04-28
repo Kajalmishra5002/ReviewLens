@@ -4,7 +4,7 @@ import { Search, Bell, Star, ShoppingCart, Menu, LayoutDashboard, GitCompare, Me
 import useStore from "../store/useStore";
 import api from "../api/axios";
 import ThemeToggle from "./ThemeToggle";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 
 export default function TopBar() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -15,6 +15,8 @@ export default function TopBar() {
   const menuRef = useRef(null);
   
   const { activeUser, logoutActiveUser, cartItems } = useStore();
+  const unreadCount = useStore((state) => state.unreadCount) || 0;
+  const notifications = useStore((state) => state.notifications) || [];
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,7 +34,8 @@ export default function TopBar() {
 
   useEffect(() => {
     if (searchQuery.length < 2) {
-      setSearchResults([]);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (searchResults.length > 0) setSearchResults([]);
       return;
     }
     const debounce = setTimeout(async () => {
@@ -44,6 +47,7 @@ export default function TopBar() {
       }
     }, 300);
     return () => clearTimeout(debounce);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
   useEffect(() => {
@@ -78,11 +82,7 @@ export default function TopBar() {
           {/* Dropdown Menu */}
           <AnimatePresence>
             {isMenuOpen && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                transition={{ duration: 0.15 }}
+              <div 
                 className="absolute left-0 top-full mt-2 w-56 bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden z-50 origin-top-left"
               >
                 <div className="p-2 space-y-1">
@@ -119,7 +119,7 @@ export default function TopBar() {
                     Reviews
                   </Link>
                 </div>
-              </motion.div>
+              </div>
             )}
           </AnimatePresence>
         </div>
@@ -153,10 +153,7 @@ export default function TopBar() {
         
         <AnimatePresence>
           {isSearchOpen && searchResults.length > 0 && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
+            <div 
               className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111A2E] shadow-2xl overflow-hidden z-50 max-h-96 overflow-y-auto"
             >
               {searchResults.slice(0, 5).map(item => (
@@ -180,7 +177,7 @@ export default function TopBar() {
                   </div>
                 </Link>
               ))}
-            </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>
@@ -219,7 +216,7 @@ export default function TopBar() {
           <div className="relative group ml-2">
             <button className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
               <Bell className="w-5 h-5" />
-              {useStore((state) => state.unreadCount) > 0 && (
+              {unreadCount > 0 && (
                 <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-[#0A101D] rounded-full animate-pulse"></span>
               )}
             </button>
@@ -228,15 +225,15 @@ export default function TopBar() {
             <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-[#111A2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 transform origin-top-right group-hover:scale-100 scale-95">
               <div className="p-4 bg-slate-50 dark:bg-[#0A101D]/50 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                 <h3 className="text-slate-900 dark:text-white font-semibold">Notifications</h3>
-                {useStore((state) => state.unreadCount) > 0 && (
+                {unreadCount > 0 && (
                   <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-xs font-bold px-2 py-0.5 rounded-full">
-                    {useStore((state) => state.unreadCount)} New
+                    {unreadCount} New
                   </span>
                 )}
               </div>
               <div className="max-h-64 overflow-y-auto">
-                {useStore((state) => state.notifications).length > 0 ? (
-                  useStore((state) => state.notifications).map((notif) => (
+                {notifications.length > 0 ? (
+                  notifications.map((notif) => (
                     <div 
                       key={notif._id} 
                       onClick={async () => {

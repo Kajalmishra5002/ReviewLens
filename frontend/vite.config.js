@@ -10,6 +10,8 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    force: true // 🔄 Force Vite to clear cache and re-optimize (picks up recharts)
+    // Pre-bundle recharts + react-is so Vite never fails to resolve the
+    // "Failed to resolve import 'react-is' from recharts" error.
+    include: ["recharts", "react-is"]
   }
 })

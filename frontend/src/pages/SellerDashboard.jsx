@@ -27,27 +27,27 @@ export default function SellerDashboard() {
   const totalEarnings = orders.reduce((acc, order) => acc + (order.sellerRevenue || 0), 0);
 
   useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      try {
+        const [prodRes, ordRes] = await Promise.all([
+          api.get(`/products/seller/${activeUser._id}`),
+          api.get(`/orders/seller/${activeUser._id}`)
+        ]);
+        setProducts(prodRes.data.products);
+        setOrders(ordRes.data.orders);
+      } catch (err) {
+        console.error("Failed to fetch dashboard data", err);
+        toast.error("Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (activeUser && (activeUser.role === "Seller" || activeUser.role === "Admin")) {
       fetchDashboardData();
     }
   }, [activeUser]);
-
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      const [prodRes, ordRes] = await Promise.all([
-        api.get(`/products/seller/${activeUser._id}`),
-        api.get(`/orders/seller/${activeUser._id}`)
-      ]);
-      setProducts(prodRes.data.products);
-      setOrders(ordRes.data.orders);
-    } catch (err) {
-      console.error("Failed to fetch dashboard data", err);
-      toast.error("Failed to load dashboard data");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const deleteProduct = async (id) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
@@ -55,7 +55,7 @@ export default function SellerDashboard() {
       await api.delete(`/products/admin/delete/${id}`);
       setProducts(products.filter(p => p._id !== id));
       toast.success("Product deleted successfully");
-    } catch (err) {
+    } catch {
       toast.error("Failed to delete product");
     }
   };

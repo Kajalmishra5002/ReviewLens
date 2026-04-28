@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 import { Award, Grid, Search, Filter, SlidersHorizontal, ArrowRight, Heart, ShoppingCart, CheckCircle2, Zap, Star } from "lucide-react";
 import api from "../api/axios";
 import ProductCard from "../components/ProductCard";
+import SkeletonCard from "../components/SkeletonCard";
 import Footer from "../components/Footer";
-import { motion, AnimatePresence } from "framer-motion";
-import toast from "react-hot-toast";
+
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -23,8 +23,7 @@ export default function Dashboard() {
       .then(res => {
         const prods = res.data.products || res.data || [];
         const enrichedProds = prods.map(p => {
-           const reviews = p.numOfReviews || p.reviews?.length || 0;
-           const sentiment = p.smartScore || p.sentimentScore || 75;
+
            return {
              ...p
            };
@@ -73,11 +72,10 @@ export default function Dashboard() {
   };
 
   if (loading) {
-     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="relative w-16 h-16">
-          <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
-          <div className="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+    return (
+      <div className="max-w-7xl mx-auto py-16 px-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
         </div>
       </div>
     );
@@ -93,13 +91,11 @@ export default function Dashboard() {
         <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-black/20 blur-3xl rounded-full pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-col items-start max-w-2xl">
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
+          <div 
             className="flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase mb-6 shadow-inner border border-white/30"
           >
             <Zap className="w-4 h-4 text-yellow-300 fill-yellow-300" /> New Electronics Arrived
-          </motion.div>
+          </div>
           
           <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-6 leading-tight drop-shadow-md">
             Discover the Future of <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500">Smart Shopping</span>
@@ -154,15 +150,8 @@ export default function Dashboard() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {bestProducts.map((p, index) => (
-            <motion.div 
-              key={p._id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-               <ProductCard p={p} badgeType="best" />
-            </motion.div>
+          {bestProducts.map((p) => (
+               <ProductCard key={p._id} p={p} badgeType="best" />
           ))}
         </div>
       </section>
@@ -310,15 +299,10 @@ export default function Dashboard() {
                   </h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredCatalog.map((p, index) => (
-                    <motion.div 
-                      key={p._id}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.2 }}
-                    >
+                  {filteredCatalog.map((p) => (
+                    <div key={p._id}>
                       <ProductCard p={p} badgeType="trending" />
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </div>

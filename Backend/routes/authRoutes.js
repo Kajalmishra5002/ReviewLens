@@ -11,7 +11,7 @@ const {
   updateProfile,
   verifyEmail,
   googleLogin
-} = require('../Controllers/authController');
+} = require('../controllers/authController');
 
 const { isAuthenticated } = require('../middlewares/authMiddleware');
 

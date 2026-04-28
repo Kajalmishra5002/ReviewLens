@@ -32,7 +32,8 @@ export default function Register() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await api.post("/auth/register", { name, email, password });
+      const res = await api.post("/users/register", { name, email, password });
+      console.log("Registration Response:", res.data);
       
       if (res?.data?.token) {
         localStorage.setItem("token", res.data.token);
@@ -151,7 +152,7 @@ export default function Register() {
                 onClick={async () => {
                   setLoading(true);
                   try {
-                    const res = await api.post("/auth/google-login", { 
+                    const res = await api.post("/users/google-login", { 
                       email: "google@test.com", 
                       name: "Google User" 
                     });
