@@ -4,11 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "postinstall": "npm install --prefix backend && npm install --prefix frontend",
+    "postinstall": "npm install --prefix Backend && npm install --prefix frontend",
     "build": "npm run build --prefix frontend",
-    "start": "npm run start --prefix backend",
+    "start": "npm run start --prefix Backend",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd backend && nodemon index.js",
+    "server": "cd Backend && nodemon index.js",
     "client": "cd frontend && npm run dev"
   },
   "keywords": [],
