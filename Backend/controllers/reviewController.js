@@ -1,73 +1,126 @@
 const Review = require("../models/Review.js");
 const { analyzeSentiment } = require("../utils/sentiment.js");
+const { calculateSmartScore } = require("../utils/prasAlgorithm.js");
+const { dummyReviews } = require("../data/dummyData");
 const axios = require("axios");
 
 exports.addReview = async (req, res) => {
   try {
-    const { productId, userId, reviewText, rating, name } = req.body;
+    const { productId: bodyProductId, rating, text, name: bodyName } = req.body;
+    const { id: paramsProductId } = req.params;
 
-    if (!productId || !userId || !reviewText || !rating || !name) {
-      return res.status(400).json({ message: "Missing required fields" });
+    const productId = bodyProductId || paramsProductId;
+    const name = bodyName || (req.user ? req.user.name : "Anonymous");
+    const userId = req.user ? req.user._id : (req.body.userId || null);
+
+    if (!productId || !text || !rating) {
+      return res.status(400).json({ success: false, message: "Missing required fields (productId, text, rating)" });
     }
 
-    const sentiment = await analyzeSentiment(reviewText);
+    if (Number(rating) < 1 || Number(rating) > 5) {
+      return res.status(400).json({ success: false, message: "Rating must be between 1 and 5" });
+    }
+
+    // 🧠 AI Sentiment & Fake Score
+    let sentiment = 'Neutral';
+    let aiFakeScore = 0;
+    let aiIsFake = false;
+
+    try {
+      const aiResponse = await axios.post(`${process.env.AI_SERVICE_URL}/analyze`, { 
+        text, 
+        rating: Number(rating) 
+      }, { timeout: 5000 });
+      
+      sentiment = aiResponse.data.sentiment || 'Neutral';
+      aiFakeScore = aiResponse.data.fake_score || 0;
+      aiIsFake = aiResponse.data.is_fake || false;
+    } catch (err) {
+      const posWords = ['good', 'great', 'excellent', 'amazing', 'love'];
+      if (text.toLowerCase().includes('good') || text.toLowerCase().includes('great')) sentiment = 'Positive';
+    }
+
+    let isFake = aiIsFake;
+    let fakeScore = aiFakeScore;
+
+    if (!global.isDBConnected) {
+       // Return mock success in Demo Mode
+       return res.status(201).json({ 
+         success: true, 
+         message: "Review submitted (DEMO MODE - Not saved)",
+         review: { productId, name, rating, reviewText: text, sentiment, isFake, fakeScore, createdAt: new Date() }
+       });
+    }
+
+    const duplicate = await Review.findOne({ 
+      productId, 
+      reviewText: { $regex: new RegExp("^" + text.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i") } 
+    });
+    
+    if (duplicate) {
+      isFake = true;
+      fakeScore = 100;
+    }
 
     const review = await Review.create({
       productId,
-      userId,
+      userId: userId || "000000000000000000000000",
       name,
-      rating,
-      reviewText,
+      rating: Number(rating),
+      reviewText: text,
       sentiment,
+      isSuspicious: isFake,
+      isFake,
+      fakeScore
     });
 
-    // ✅ Sync with Product embedded reviews
-    const product = await require("../models/Product").findById(productId);
+    const Product = require("../models/Product");
+    const product = await Product.findById(productId);
     if (product) {
-      const isReviewed = product.reviews.find(
-        r => r.user.toString() === userId.toString()
-      );
-
-      if (isReviewed) {
-        product.reviews.forEach(r => {
-          if (r.user.toString() === userId.toString()) {
-            r.rating = rating;
-            r.comment = reviewText;
-            r.sentiment = sentiment;
-          }
-        });
-      } else {
-        product.reviews.push({
-          user: userId,
-          name,
-          rating,
-          comment: reviewText,
-          sentiment
-        });
-      }
-      product.numOfReviews = product.reviews.length;
-      product.ratings = product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length;
+      const allReviews = await Review.find({ productId });
+      product.reviews = allReviews.map(r => ({
+        _id: r._id,
+        user: r.userId,
+        name: r.name,
+        rating: r.rating,
+        text: r.reviewText,
+        sentiment: r.sentiment,
+        isFake: r.isFake,
+        isSuspicious: r.isSuspicious,
+        createdAt: r.createdAt
+      }));
+      product.numReviews = allReviews.length;
+      product.avgRating = allReviews.reduce((acc, r) => acc + r.rating, 0) / allReviews.length;
       await product.save();
+      return res.status(201).json({ success: true, review, product });
     }
 
     res.status(201).json({ success: true, review });
   } catch (error) {
-    console.error("Error adding review:", error);
-    res.status(500).json({ success: false, message: "Server Error adding review" });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 exports.getProductReviews = async (req, res) => {
   try {
     const { productId } = req.params;
-    
-    // Find all reviews for this product
+
+    if (!global.isDBConnected) {
+      const { dummyReviews } = require("../data/dummyData");
+      return res.json({ success: true, reviews: dummyReviews.filter(r => r.productId === productId) });
+    }
+
     const reviews = await Review.find({ productId }).sort({ createdAt: -1 });
+
+    if (reviews.length === 0) {
+      const { dummyReviews } = require("../data/dummyData");
+      return res.json({ success: true, reviews: dummyReviews.filter(r => r.productId === productId) });
+    }
 
     res.json({ success: true, reviews });
   } catch (error) {
-    console.error("Error fetching reviews:", error);
-    res.status(500).json({ success: false, message: "Server Error fetching reviews" });
+    const { dummyReviews } = require("../data/dummyData");
+    res.json({ success: true, reviews: dummyReviews.filter(r => r.productId === req.params.productId) });
   }
 };
 
@@ -97,9 +150,23 @@ exports.detectFakeReviewsForProduct = async (req, res) => {
     if (flagged_review_ids && flagged_review_ids.length > 0) {
       await Review.updateMany(
         { _id: { $in: flagged_review_ids } },
-        { $set: { isSuspicious: true } }
+        { $set: { isFake: true, isSuspicious: true } }
       );
+      
+      // Sync back to Product
+      const Product = require("../models/Product");
+      const product = await Product.findById(productId);
+      if (product) {
+        product.reviews.forEach(r => {
+          if (flagged_review_ids.includes(r._id?.toString())) {
+            r.isFake = true;
+            r.isSuspicious = true;
+          }
+        });
+        await product.save();
+      }
     }
+
 
     res.json({ success: true, fake_percentage, flagged_review_ids });
   } catch (error) {

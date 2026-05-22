@@ -23,9 +23,12 @@ const getSentimentBars = (reviews) => {
   return { pos: Math.round((pos / total) * 100), neg: Math.round((neg / total) * 100) };
 };
 
-export default function ProductCard({ p, badgeType }) {
+export default function ProductCard({ p, product, badgeType }) {
   const navigate = useNavigate();
   const { addToCart, addToCompare, compareList = [] } = useStore();
+
+  // Use product if p is not provided
+  if (!p && product) p = product;
 
   if (!p) return null;
 
@@ -125,8 +128,15 @@ export default function ProductCard({ p, badgeType }) {
             </div>
           )}
 
+          {/* External Source Badge */}
+          {p?.source === "external" && (
+            <div className="absolute bottom-3 right-3 z-30 flex items-center gap-1 bg-blue-600/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-[10px] font-black shadow-md uppercase tracking-tighter">
+              <Sparkles className="w-3 h-3" /> AI Curated
+            </div>
+          )}
+
           {/* Fake Review Indicator (Bottom Right) */}
-          {hasFakeReviews && (
+          {hasFakeReviews && p?.source !== "external" && (
             <div className="absolute bottom-3 right-3 z-30 flex items-center gap-1 bg-red-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-[10px] font-bold shadow-md">
               <AlertTriangle className="w-3 h-3" /> Fake reviews
             </div>

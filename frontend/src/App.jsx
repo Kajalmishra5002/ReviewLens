@@ -17,6 +17,7 @@ import Checkout from "./pages/Checkout";
 import SearchResults from "./pages/SearchResults";
 
 import Reviews from "./pages/Reviews";
+import ReviewsPage from "./pages/ReviewsPage";
 import NotFound from "./pages/NotFound";
 import Payment from "./pages/Payment";
 import Settings from "./pages/Settings";
@@ -75,7 +76,8 @@ export default function App() {
 
           <Route path="/settings" element={<Settings />} />
           <Route path="/compare" element={<Compare />} />
-          <Route path="/reviews" element={<Reviews />} />
+          <Route path="/reviews" element={<ReviewsPage />} />
+          <Route path="/reviews/:productId" element={<Reviews />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         </main>

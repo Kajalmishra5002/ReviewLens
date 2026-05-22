@@ -6,7 +6,14 @@ const useStore = create(
     (set) => ({
 
   // 👤 USER
-  activeUser: JSON.parse(localStorage.getItem("user")) || null,
+  activeUser: (() => {
+    try {
+      const saved = localStorage.getItem("user");
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  })(),
 
   loginActiveUser: (user) => {
     localStorage.setItem("user", JSON.stringify(user));

@@ -44,4 +44,13 @@ router.get(
   authorizedRoles('Admin'),
   advancedDashboard
 );
+
+// ✅ Upload Dataset (Admin only)
+router.post(
+  '/upload-dataset',
+  isAuthenticated,
+  authorizedRoles('Admin'),
+  require('../controllers/adminController').uploadDataset
+);
+
 module.exports = router;

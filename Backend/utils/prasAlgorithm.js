@@ -69,31 +69,42 @@ const heuristicSmartScore = (reviews, product) => {
   return Math.round(Math.max(0, Math.min(5, smartScore)) * 10) / 10;
 };
 
-// PRAS v2: ML-based adaptive scoring (returns 0-5 scale for compatibility)
-exports.calculateProductSmartScore = async (reviews, product) => {
-  if (!reviews || reviews.length === 0) return 0;
+// PRAS v2: ML-based adaptive scoring
+const calculateSmartScore = async (data, product) => {
+  // Handle both (reviews, product) and ({sentiment_score, ...})
+  let sentimentScore, fakePercentage, reviewVolume, avgRating;
 
-  try {
+  if (Array.isArray(data)) {
+    const reviews = data;
+    if (reviews.length === 0) return 0;
     const posCount = reviews.filter(r => r.sentiment === "Positive").length;
     const susCount = reviews.filter(r => r.isSuspicious).length;
+    sentimentScore = posCount / reviews.length;
+    fakePercentage = (susCount / reviews.length) * 100;
+    reviewVolume = reviews.length;
+    avgRating = reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / reviews.length;
+  } else {
+    sentimentScore = data.sentiment_score || 0;
+    fakePercentage = data.fake_percentage || 0;
+    reviewVolume = data.review_volume || 0;
+    avgRating = data.avg_rating || 0;
+  }
 
-    const sentimentScore = posCount / reviews.length;
-    const fakePercentage = (susCount / reviews.length) * 100;
-    const reviewVolume = reviews.length;
-    const avgRating =
-      reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / reviews.length;
-
+  try {
     const response = await axios.post(
       `${process.env.AI_SERVICE_URL}/pras-score`,
       { sentiment_score: sentimentScore, fake_percentage: fakePercentage, review_volume: reviewVolume, avg_rating: avgRating },
       { timeout: 3000 }
     );
 
-    // ML service returns 0-100; normalize to 0-5 for DB compatibility
     const mlScore = response.data.dynamic_score;
     return Math.round((mlScore / 20) * 10) / 10; // 0-100 → 0-5
   } catch (err) {
     console.error("PRAS ML service unavailable. Using heuristic fallback.");
-    return heuristicSmartScore(reviews, product);
+    // Fallback to heuristic if we have the reviews array
+    if (Array.isArray(data)) return heuristicSmartScore(data, product);
+    return Math.round((avgRating) * 10) / 10;
   }
 };
+
+module.exports = { calculateSmartScore, calculateReviewWeight };

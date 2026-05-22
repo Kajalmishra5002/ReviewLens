@@ -46,8 +46,8 @@ export default function ProductListing({ type = "all" }) {
       });
   }, [type]);
 
-  const categories = ["All", ...new Set(allProducts.map(p => p.category).filter(Boolean))];
-  const brands = ["All", ...new Set(allProducts.map(p => p.brand).filter(Boolean))];
+  const categories = ["All", ...new Set((allProducts || []).map(p => p?.category).filter(Boolean))];
+  const brands = ["All", ...new Set((allProducts || []).map(p => p?.brand).filter(Boolean))];
 
   // Base sorted catalog based on `type`
   const baseCatalog = useMemo(() => {

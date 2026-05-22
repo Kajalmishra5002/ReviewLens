@@ -40,9 +40,10 @@ const isAuthenticated = async (req, res, next) => {
     next();
 
   } catch (error) {
+    console.error("JWT Verification Error:", error.message);
     return res.status(401).json({
       success: false,
-      message: 'Invalid or expired token'
+      message: error.name === 'TokenExpiredError' ? 'Token has expired, please login again' : 'Invalid token, please login again'
     });
   }
 };

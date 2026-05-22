@@ -6,13 +6,26 @@ const useSettingsStore = create((set) => ({
   currency: localStorage.getItem("currency") || "INR",
   dateFormat: localStorage.getItem("dateFormat") || "DD/MM/YYYY",
   accentColor: localStorage.getItem("accentColor") || "purple",
-  notifications: JSON.parse(localStorage.getItem("notifications")) || {
-    email: true,
-    order: true,
-    marketing: false,
-    security: true,
-    push: false
-  },
+  notifications: (() => {
+    try {
+      const saved = localStorage.getItem("notifications");
+      return saved ? JSON.parse(saved) : {
+        email: true,
+        order: true,
+        marketing: false,
+        security: true,
+        push: false
+      };
+    } catch (e) {
+      return {
+        email: true,
+        order: true,
+        marketing: false,
+        security: true,
+        push: false
+      };
+    }
+  })(),
 
   setTheme: (theme) => {
     localStorage.setItem("theme", theme);

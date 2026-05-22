@@ -33,6 +33,18 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Please enter email & password", 400));
   }
 
+  // FALLBACK FOR DEMO MODE
+  if (!global.isDBConnected) {
+    if (email === "demo@example.com" && password === "demo123") {
+        return res.status(200).json({
+            success: true,
+            token: "mock-demo-token-12345",
+            user: { _id: "65f1a1a1a1a1a1a1a1a1a1ff", name: "Demo User", email, role: "User" }
+        });
+    }
+    return next(new ErrorHandler("DB Disconnected. Use Google Login or demo@example.com / demo123", 401));
+  }
+
   const user = await User.findOne({ email }).select("+password");
 
   if (!user) {
@@ -52,6 +64,21 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
 exports.googleLogin = catchAsyncErrors(async (req, res, next) => {
   const { email, name } = req.body;
   console.log("Google Login Request:", { email, name });
+
+  // FALLBACK FOR DEMO MODE
+  if (!global.isDBConnected) {
+    console.log("⚠️ DB Disconnected. Using Mock OAuth User for Demo.");
+    return res.status(200).json({
+      success: true,
+      token: "mock-demo-token-12345",
+      user: {
+        _id: "65f1a1a1a1a1a1a1a1a1a1ff",
+        name: name || "Demo User",
+        email: email || "demo@example.com",
+        role: "User"
+      }
+    });
+  }
 
   let user = await User.findOne({ email });
 

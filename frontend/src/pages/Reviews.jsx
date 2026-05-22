@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { Star, BrainCircuit, CheckCircle2, MessageSquare, ThumbsUp, ThumbsDown } from "lucide-react";
 import toast from "react-hot-toast";
 import useStore from "../store/useStore";
@@ -22,8 +22,8 @@ import { Pie } from "react-chartjs-2";
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, ChartTitle, Tooltip, Legend);
 
 export default function Reviews() {
-  const [products, setProducts] = useState([]);
-  const [selectedProductId, setSelectedProductId] = useState("");
+  const { productId: urlProductId } = useParams();
+  const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -33,39 +33,31 @@ export default function Reviews() {
   const [reviewText, setReviewText] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch all products
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get("/products");
-        const list = res.data.products || res.data || [];
-        setProducts(list);
-        if (list.length > 0) {
-          setSelectedProductId(list[0]._id);
+        setLoading(true);
+        // 1. Fetch Product if we have an ID
+        if (urlProductId) {
+          const prodRes = await api.get(`/products/${urlProductId}`);
+          setProduct(prodRes.data.product || prodRes.data);
+          
+          // 2. Fetch Reviews
+          const revRes = await api.get(`/reviews/${urlProductId}`);
+          setReviews(revRes.data.reviews || []);
         }
       } catch (err) {
-        console.error("Failed to load products", err);
+        console.error("Failed to load review data", err);
+        toast.error("Could not load reviews for this product");
       } finally {
         setLoading(false);
       }
     };
-    fetchProducts();
-  }, []);
+    fetchData();
+  }, [urlProductId]);
 
-  // Extract reviews directly from the selected product instead of fetching separately
-  useEffect(() => {
-    if (selectedProductId) {
-      const product = products.find(p => p._id === selectedProductId);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setReviews(prev => {
-        const next = product?.reviews || [];
-        if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
-        return next;
-      });
-    }
-  }, [selectedProductId, products]);
-
-  const selectedProduct = products.find(p => p._id === selectedProductId);
+  const selectedProduct = product;
+  const selectedProductId = urlProductId;
 
   const submitReview = async (e) => {
     e.preventDefault();
@@ -90,19 +82,13 @@ export default function Reviews() {
       // Update local state to reflect new review instantly
       const updatedReview = {
         _id: Date.now().toString(),
-        user: activeUser._id,
-        name: activeUser.name,
+        userName: activeUser.name,
         rating,
-        comment: reviewText,
-        sentiment: "Analyzing..." // Optimistic update
+        reviewText: reviewText,
+        sentiment: "Analyzing..." 
       };
       
-      setProducts(prevProducts => prevProducts.map(p => {
-        if (p._id === selectedProductId) {
-          return { ...p, reviews: [updatedReview, ...(p.reviews || [])] };
-        }
-        return p;
-      }));
+      setReviews(prev => [updatedReview, ...prev]);
       // setReviews is automatically triggered by the useEffect that watches products
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to submit review");
@@ -202,9 +188,8 @@ export default function Reviews() {
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 text-slate-100 space-y-10">
       
-      {/* 1. Header & Dropdown Section */}
+      {/* 1. Header Section */}
       <section className="bg-gradient-to-br from-indigo-900 to-purple-900 border border-indigo-500/30 p-8 rounded-3xl flex flex-col md:flex-row items-center gap-8 justify-between shadow-2xl relative overflow-hidden">
-        {/* Abstract Background shapes */}
         <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute bottom-[-50%] left-[-10%] w-64 h-64 bg-indigo-500/30 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -213,25 +198,24 @@ export default function Reviews() {
             <div className="bg-white/10 p-2.5 rounded-xl border border-white/20 shadow-inner backdrop-blur-sm">
               <MessageSquare className="w-6 h-6 text-purple-300" />
             </div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Interactive Reviews</h1>
+            <h1 className="text-3xl font-black text-white tracking-tight">
+              {selectedProduct ? `Reviews for ${selectedProduct.name}` : "Interactive Reviews"}
+            </h1>
           </div>
           <p className="text-indigo-200/90 text-sm font-medium leading-relaxed max-w-lg">
-            Select a product to explore user feedback, dynamic AI sentiment distribution, and key pros & cons extracted from real reviews.
+            Explore AI-driven sentiment analysis, authenticity scoring, and verified buyer feedback for this product.
           </p>
         </div>
-
-        <div className="w-full md:w-[45%] flex flex-col gap-2 relative z-10">
-          <label className="text-xs font-black text-indigo-300 tracking-widest uppercase ml-1">Select Product to Analyze</label>
-          <select 
-            value={selectedProductId}
-            onChange={(e) => setSelectedProductId(e.target.value)}
-            className="w-full bg-indigo-950/80 border border-indigo-400/30 text-white p-4 rounded-2xl focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30 cursor-pointer appearance-none shadow-inner transition-all font-bold"
-          >
-            {products.map(p => (
-              <option key={p._id} value={p._id}>{p.name}</option>
-            ))}
-          </select>
-        </div>
+        
+        {selectedProduct && (
+          <div className="relative z-10 bg-white/10 p-4 rounded-2xl border border-white/20 backdrop-blur-md">
+            <img 
+              src={selectedProduct.images?.[0]?.url || selectedProduct.image} 
+              alt={selectedProduct.name} 
+              className="w-20 h-20 object-contain mx-auto"
+            />
+          </div>
+        )}
       </section>
 
       {/* 2. Middle Section - Selected Product Analysis */}

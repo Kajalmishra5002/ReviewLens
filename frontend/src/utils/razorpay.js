@@ -1,4 +1,5 @@
 import toast from "react-hot-toast";
+import { API_URL } from "../api/axios";
 
 export const handleRazorpayCheckout = async (
   amount,
@@ -10,7 +11,7 @@ export const handleRazorpayCheckout = async (
     const loadingToast = toast.loading("Initiating payment...");
 
     // 🔥 1. Create order
-    const res = await fetch("http://localhost:5000/api/payment/create-order", {
+    const res = await fetch(`${API_URL}/payment/create-order`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -49,7 +50,7 @@ export const handleRazorpayCheckout = async (
 
         try {
           const verifyRes = await fetch(
-            "http://localhost:5000/api/payment/verify",
+            `${API_URL}/payment/verify`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },

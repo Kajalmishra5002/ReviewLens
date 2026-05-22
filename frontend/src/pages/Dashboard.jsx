@@ -37,22 +37,26 @@ export default function Dashboard() {
       });
   }, []);
 
-  const categories = ["All", ...new Set(allProducts.map(p => p.category).filter(Boolean))];
-  const brands = ["All", ...new Set(allProducts.map(p => p.brand).filter(Boolean))];
+  const categories = ["All", ...new Set((allProducts || []).map(p => p?.category).filter(Boolean))];
+  const brands = ["All", ...new Set((allProducts || []).map(p => p?.brand).filter(Boolean))];
 
 
   const bestProducts = useMemo(() => {
+    console.log("DEBUG: allProducts count", allProducts?.length);
     return allProducts
-      .filter(p => (p.ratings || p.rating || 0) >= 4.0 && (p.smartScore || p.sentimentScore || 75) >= 80)
-      .sort((a,b) => (b.smartScore || b.sentimentScore || 75) - (a.smartScore || a.sentimentScore || 75))
-      .slice(0, 3); // Limit to top 3 initially
+      .filter(p => (p.ratings || p.rating || 0) >= 4.0) // Only filter by rating if smartScore is 0
+      .sort((a,b) => {
+          const scoreA = a.smartScore || a.sentimentScore || (a.rating * 20);
+          const scoreB = b.smartScore || b.sentimentScore || (b.rating * 20);
+          return scoreB - scoreA;
+      })
+      .slice(0, 3);
   }, [allProducts]);
 
   // Filtered Catalog Logic (Only shows when filters are active)
   const isFiltering = selectedCategory !== "All" || selectedBrand !== "All" || searchTerm !== "" || maxPrice !== 250000 || minRating !== 0;
 
   const filteredCatalog = useMemo(() => {
-    if (!isFiltering) return []; // Hide catalog by default
     return allProducts.filter(p => {
       const matchCat = selectedCategory === "All" || p.category === selectedCategory;
       const matchBrand = selectedBrand === "All" || p.brand === selectedBrand;

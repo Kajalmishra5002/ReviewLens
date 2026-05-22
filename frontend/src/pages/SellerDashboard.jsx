@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { 
   LayoutDashboard, PlusCircle, Package, ShoppingBag, DollarSign, 
-  Trash2, Edit, TrendingUp
+  Trash2, Edit, TrendingUp, Database
 } from "lucide-react";
 import api from "../api/axios";
 import useStore from "../store/useStore";
@@ -11,6 +11,7 @@ import { useLocation } from "react-router-dom";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart
 } from "recharts";
+import AdminDataset from "../components/AdminDataset";
 
 export default function SellerDashboard() {
   const location = useLocation();
@@ -60,7 +61,6 @@ export default function SellerDashboard() {
     }
   };
 
-  // Monthly Earnings Data preparation
   const getMonthlyEarnings = () => {
     const data = {};
     orders.forEach(order => {
@@ -68,8 +68,6 @@ export default function SellerDashboard() {
       if (!data[month]) data[month] = 0;
       data[month] += (order.sellerRevenue || 0);
     });
-    
-    // Convert to array
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return months.map(m => ({
       name: m,
@@ -78,7 +76,23 @@ export default function SellerDashboard() {
   };
 
   if (loading) {
-    return <div className="flex h-full items-center justify-center p-10"><div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>;
+    return (
+      <div className="flex h-full items-center justify-center p-10">
+        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  const tabs = [
+    { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-5 h-5" /> },
+    { id: "add_product", label: "Add Product", icon: <PlusCircle className="w-5 h-5" /> },
+    { id: "my_products", label: "My Products", icon: <Package className="w-5 h-5" /> },
+    { id: "orders", label: "Orders", icon: <ShoppingBag className="w-5 h-5" /> },
+    { id: "earnings", label: "Earnings", icon: <DollarSign className="w-5 h-5" /> },
+  ];
+
+  if (activeUser?.role === "Admin") {
+    tabs.push({ id: "dataset", label: "Dataset Integrator", icon: <Database className="w-5 h-5" /> });
   }
 
   return (
@@ -87,20 +101,12 @@ export default function SellerDashboard() {
       {/* Sidebar */}
       <div className="w-64 bg-slate-50 dark:bg-[#111A2E] border-r border-slate-200 dark:border-slate-800 flex flex-col">
         <div className="p-6">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            Seller Panel
-          </h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">Seller Panel</h2>
           <p className="text-sm text-slate-500 mt-1">Manage your store</p>
         </div>
         
         <nav className="flex-1 px-4 space-y-2">
-          {[
-            { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-5 h-5" /> },
-            { id: "add_product", label: "Add Product", icon: <PlusCircle className="w-5 h-5" /> },
-            { id: "my_products", label: "My Products", icon: <Package className="w-5 h-5" /> },
-            { id: "orders", label: "Orders", icon: <ShoppingBag className="w-5 h-5" /> },
-            { id: "earnings", label: "Earnings", icon: <DollarSign className="w-5 h-5" /> }
-          ].map(tab => (
+          {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -120,11 +126,9 @@ export default function SellerDashboard() {
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto bg-white dark:bg-[#0A101D]">
         
-        {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="p-8">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Dashboard Overview</h1>
-            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 p-6 rounded-2xl">
                 <div className="flex justify-between items-center mb-4">
@@ -133,7 +137,6 @@ export default function SellerDashboard() {
                 </div>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white">{totalProducts}</p>
               </div>
-              
               <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 p-6 rounded-2xl">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-emerald-600 dark:text-emerald-400 font-semibold">Total Orders</h3>
@@ -141,7 +144,6 @@ export default function SellerDashboard() {
                 </div>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white">{totalOrders}</p>
               </div>
-
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 p-6 rounded-2xl">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-amber-600 dark:text-amber-400 font-semibold">Total Earnings</h3>
@@ -179,9 +181,7 @@ export default function SellerDashboard() {
                     </tr>
                   ))}
                   {orders.length === 0 && (
-                    <tr>
-                      <td colSpan="4" className="p-8 text-center text-slate-500">No orders yet</td>
-                    </tr>
+                    <tr><td colSpan="4" className="p-8 text-center text-slate-500">No orders yet</td></tr>
                   )}
                 </tbody>
               </table>
@@ -189,15 +189,12 @@ export default function SellerDashboard() {
           </div>
         )}
 
-        {/* ADD PRODUCT TAB */}
         {activeTab === "add_product" && (
           <div className="h-full overflow-y-auto pb-10">
-            {/* Reuse the AddProduct component seamlessly */}
             <AddProduct />
           </div>
         )}
 
-        {/* MY PRODUCTS TAB */}
         {activeTab === "my_products" && (
           <div className="p-8">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">My Products</h1>
@@ -220,18 +217,10 @@ export default function SellerDashboard() {
                   </div>
                 </div>
               ))}
-              {products.length === 0 && (
-                <div className="col-span-full p-12 text-center text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">
-                  <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>You haven't added any products yet.</p>
-                  <button onClick={() => setActiveTab('add_product')} className="mt-4 text-indigo-600 font-semibold hover:underline">Add your first product</button>
-                </div>
-              )}
             </div>
           </div>
         )}
 
-        {/* ORDERS TAB */}
         {activeTab === "orders" && (
           <div className="p-8">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Customer Orders</h1>
@@ -250,7 +239,6 @@ export default function SellerDashboard() {
                       {order.status}
                     </span>
                   </div>
-                  
                   <div className="space-y-3">
                     {order.orderItems.map(item => (
                       <div key={item._id} className="flex gap-4 items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl">
@@ -265,24 +253,12 @@ export default function SellerDashboard() {
                       </div>
                     ))}
                   </div>
-                  
-                  <div className="mt-4 flex justify-between items-center text-sm">
-                    <p className="text-slate-500">Buyer: <span className="font-medium text-slate-900 dark:text-white">{order.user?.name}</span></p>
-                    <p className="font-bold text-slate-900 dark:text-white">Your Revenue: <span className="text-emerald-600 dark:text-emerald-400">₹{order.sellerRevenue?.toLocaleString('en-IN')}</span></p>
-                  </div>
                 </div>
               ))}
-              {orders.length === 0 && (
-                <div className="p-12 text-center text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">
-                  <ShoppingBag className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No orders received yet.</p>
-                </div>
-              )}
             </div>
           </div>
         )}
 
-        {/* EARNINGS TAB */}
         {activeTab === "earnings" && (
           <div className="p-8">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Earnings Report</h1>
@@ -296,7 +272,6 @@ export default function SellerDashboard() {
                   <p className="text-4xl font-black text-slate-900 dark:text-white">₹{totalEarnings.toLocaleString('en-IN')}</p>
                 </div>
               </div>
-
               <div className="h-80 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={getMonthlyEarnings()}>
@@ -309,16 +284,17 @@ export default function SellerDashboard() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
                     <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} tickFormatter={(val) => `₹${val}`} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff', borderRadius: '8px' }}
-                      itemStyle={{ color: '#10b981' }}
-                    />
+                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff', borderRadius: '8px' }} />
                     <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
           </div>
+        )}
+
+        {activeTab === "dataset" && activeUser?.role === "Admin" && (
+          <AdminDataset />
         )}
 
       </div>

@@ -9,6 +9,7 @@ import {
   Gift,
   Ticket
 } from "lucide-react";
+import { API_URL } from "../api/axios";
 
 export default function Payment() {
   const navigate = useNavigate();
@@ -88,7 +89,7 @@ export default function Payment() {
 
     try {
       setIsVerifying(true);
-      const res = await fetch("http://localhost:5000/api/giftcard/verify", {
+      const res = await fetch(`${API_URL}/giftcard/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ voucherCode, password })
@@ -129,7 +130,7 @@ export default function Payment() {
             price: item.price
           }));
 
-          await fetch("http://localhost:5000/api/order/create", {
+          await fetch(`${API_URL}/order/create`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

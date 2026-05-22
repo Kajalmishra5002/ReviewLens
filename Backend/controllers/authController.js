@@ -1,8 +1,6 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-//const { v2: cloudinary } = require('cloudinary');
-
 const ErrorHandler = require('../middlewares/errorMiddleware').ErrorHandler;
 const catchAsyncErrors = require('../middlewares/catchAsyncError');
 const sendToken = require('../utils/jwtToken');
@@ -45,12 +43,12 @@ exports.register = catchAsyncErrors(async (req, res, next) => {
 
 // ================= LOGIN =================
 exports.login = catchAsyncErrors(async (req, res, next) => {
-  console.log("Login Request Body:", { email: req.body.email }); // Don't log password
   const { email, password } = req.body;
 
   if (!email || !password) {
     return next(new ErrorHandler("Email and password required", 400));
   }
+
 
   const user = await User.findOne({ email }).select('+password');
 

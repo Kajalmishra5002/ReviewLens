@@ -1,136 +1,16 @@
 const express = require('express');
-
-const {
-  createProduct,
-  fetchAllProducts,
-  updateProduct,
-  deleteProduct,
-  fetchSingleProduct,
-  postProductReview,
-  deleteReview,
-  fetchAIFilteredProducts,
-  getBestProducts,
-  analyzeReview,
-  compareProducts,
-  fetchSearchProducts
-} = require('../controllers/productController');
-
-const {
-  authorizedRoles,
-  isAuthenticated
-} = require('../middlewares/authMiddleware');
-
-const { getPriceHistory, getBestTimeToBuy } = require('../controllers/priceController');
-
 const router = express.Router();
+const { getProducts, getProductById, compareProducts, getBestProducts, getTrendingProducts, searchProducts } = require('../controllers/productController');
+const { addReview } = require('../controllers/reviewController');
+const { isAuthenticated } = require('../middlewares/authMiddleware');
 
-
-// ================= ADMIN =================
-
-// ✅ Create product (Admin / Setup)
-router.post(
-  '/admin/create',
-  isAuthenticated,
-  authorizedRoles('Admin'),
-  createProduct
-);
-
-// ✅ Add product (Seller / Admin)
-router.post(
-  '/add',
-  isAuthenticated,
-  authorizedRoles('Seller', 'Admin'),
-  createProduct
-);
-
-// ✅ Update product
-router.put(
-  '/admin/update/:productId',
-  isAuthenticated,
-  authorizedRoles('Admin'),
-  updateProduct
-);
-
-// ✅ Delete product
-router.delete(
-  '/admin/delete/:productId',
-  isAuthenticated,
-  authorizedRoles('Admin'),
-  deleteProduct
-);
-
-// ================= SELLER =================
-// ✅ Get seller's products
-router.get(
-  '/seller/:id',
-  isAuthenticated,
-  authorizedRoles('Seller', 'Admin'),
-  require('../controllers/productController').getSellerProducts
-);
-
-
-// ================= PUBLIC =================
-
-// ✅ All products
-router.get('/', fetchAllProducts);
-
-// 🔍 SEARCH PRODUCTS
-router.get('/search', fetchSearchProducts);
-
-// ⭐ Best products
+router.get('/', getProducts);
+router.get('/search', searchProducts);
 router.get('/best', getBestProducts);
-
-
-// ⚔️ Compare products 🔥
-router.get('/compare/:id1/:id2', compareProducts);
-
-// ✅ Single product
-router.get('/:productId', fetchSingleProduct);
-
-
-// ================= REVIEWS =================
-
-// ✅ Add / update review
-router.put(
-  '/post-new/review/:productId',
-  isAuthenticated,
-  postProductReview
-);
-
-// ✅ Delete review
-router.delete(
-  '/delete/review/:productId',
-  isAuthenticated,
-  deleteReview
-);
-
-
-// ================= AI FEATURES =================
-
-// 🤖 AI search
-router.post(
-  '/ai-search',
-  isAuthenticated,
-  fetchAIFilteredProducts
-);
-
-// 🤖 Sentiment analysis
-router.post(
-  '/analyze-review',
-  isAuthenticated,
-  analyzeReview
-);
-
-// 🤖 AI Description generation
-router.post(
-  '/generate-description',
-  isAuthenticated,
-  require('../controllers/productController').generateDescription
-);
-
-
-// 📈 Trending Intelligence
-router.get('/:productId/price-history', getPriceHistory);
-router.get('/:productId/best-time-to-buy', getBestTimeToBuy);
+router.get('/trending/list', getTrendingProducts);
+router.get('/compare', compareProducts);
+router.get('/:id', getProductById);
+router.post('/:id/review', isAuthenticated, addReview);
 
 module.exports = router;
+

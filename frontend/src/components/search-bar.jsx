@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { API_URL } from "../api/axios";
 
 export function SearchBar() {
 
@@ -8,7 +9,7 @@ export function SearchBar() {
 
   useEffect(() => {
     if (query.length > 1) {
-      fetch(`http://localhost:5000/api/products/search?q=${query}`)
+      fetch(`${API_URL}/products/search?q=${query}`)
         .then(res => res.json())
         .then(data => setResults(data.products));
     }

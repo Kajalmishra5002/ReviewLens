@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
-//const { v2: cloudinary } = require('cloudinary');
+const { v2: cloudinary } = require('cloudinary');
 
 const catchAsyncErrors = require('../middlewares/catchAsyncError');
 const { ErrorHandler } = require('../middlewares/errorMiddleware');
@@ -138,4 +138,73 @@ exports.advancedDashboard = catchAsyncErrors(async (req, res) => {
     userGrowth,
     totalOrders
   });
+});
+
+// ================= 📂 UPLOAD DATASET =================
+exports.uploadDataset = catchAsyncErrors(async (req, res, next) => {
+  if (!req.files || !req.files.file) {
+    return next(new ErrorHandler("Please upload a CSV file", 400));
+  }
+
+  const { productId } = req.body;
+  if (!productId) {
+    return next(new ErrorHandler("Product ID is required to link reviews", 400));
+  }
+
+  const csv = require('csv-parser');
+  const fs = require('fs');
+  const path = require('path');
+  const { processReview } = require('../utils/reviewProcessor');
+
+  const file = req.files.file;
+  const uploadPath = path.join(__dirname, '../uploads/', file.name);
+
+  // Ensure uploads directory exists
+  if (!fs.existsSync(path.join(__dirname, '../uploads/'))) {
+    fs.mkdirSync(path.join(__dirname, '../uploads/'));
+  }
+
+  await file.mv(uploadPath);
+
+  const results = [];
+  let processedCount = 0;
+  let errorCount = 0;
+
+  fs.createReadStream(uploadPath)
+    .pipe(csv())
+    .on('data', (data) => results.push(data))
+    .on('end', async () => {
+      console.log(`🚀 Starting batch processing for ${results.length} reviews...`);
+      
+      for (const row of results) {
+        try {
+          // Columns: review_text, rating
+          const text = row.review_text || row.text || row.Review || row.comment;
+          const rating = row.rating || row.Rating || 5;
+
+          if (text) {
+            await processReview({
+              productId,
+              userId: req.user._id,
+              name: "Dataset User",
+              text,
+              rating
+            });
+            processedCount++;
+          }
+        } catch (err) {
+          errorCount++;
+          console.error("Row processing error:", err.message);
+        }
+      }
+
+      // Cleanup
+      if (fs.existsSync(uploadPath)) fs.unlinkSync(uploadPath);
+
+      res.status(200).json({
+        success: true,
+        message: `Dataset processed: ${processedCount} success, ${errorCount} errors.`,
+        total: results.length
+      });
+    });
 });

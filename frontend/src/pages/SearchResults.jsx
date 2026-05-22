@@ -35,7 +35,7 @@ export default function SearchResults() {
         setLoading(true);
         setError(null);
         
-        const res = await api.get(`/products?keyword=${encodeURIComponent(query)}`);
+        const res = await api.get(`/products/search?q=${encodeURIComponent(query)}`);
         console.log("Search API Response:", res.data); // Debug logging
         
         if (res.data.success) {

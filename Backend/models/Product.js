@@ -1,145 +1,117 @@
 const mongoose = require('mongoose');
 
-// ================= REVIEW SCHEMA =================
-const reviewSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  name: {
-    type: String,
-    required: true
-  },
-  rating: {
-    type: Number,
-    required: true,
-    min: 1,
-    max: 5
-  },
-  comment: {
-    type: String,
-    required: true
-  },
-  sentiment: {
-    type: String, // Positive / Negative / Neutral (AI)
-    default: "Neutral"
-  },
-  isSuspicious: {
-    type: Boolean,
-    default: false
-  }
-}, { timestamps: true });
-
-
-// ================= PRODUCT SCHEMA =================
 const productSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true
-  },
-
-  description: {
-    type: String
-  },
-
-  features: [String],
-
-  brand: {
-    type: String,
-    required: true
-  },
-
-  price: {
-    type: Number,
-    required: true
-  },
-
-  category: {
-    type: String,
-    required: true
-  },
-
-  // ✅ external links
-  amazonLink: {
-    type: String
-  },
-  flipkartLink: {
-    type: String
-  },
-  officialLink: {
-    type: String
-  },
-
-  // ✅ multiple images support
-  images: [
-    {
-      url: String,
-      public_id: String
+    name: {
+        type: String,
+        required: [true, 'Please add a product name'],
+        trim: true
+    },
+    category: {
+        type: String,
+        required: [true, 'Please add a category']
+    },
+    brand: {
+        type: String,
+        required: [true, 'Please add a brand']
+    },
+    price: {
+        type: Number,
+        required: [true, 'Please add a price']
+    },
+    description: {
+        type: String,
+        default: ''
+    },
+    rating: {
+        type: Number,
+        default: 0
+    },
+    ratings: {
+        type: Number,
+        default: 0
+    },
+    numOfReviews: {
+        type: Number,
+        default: 0
+    },
+    smartScore: {
+        type: Number,
+        default: 0
+    },
+    aiInsights: {
+        summary: { type: String, default: 'No insights available yet.' },
+        positiveHighlights: [String],
+        negativeHighlights: [String],
+        lastGenerated: { type: Date, default: Date.now }
+    },
+    features: {
+        type: [String],
+        default: []
+    },
+    image: {
+        type: String,
+        default: 'https://via.placeholder.com/150'
+    },
+    images: [
+        {
+            url: { type: String, required: true }
+        }
+    ],
+    avgRating: {
+        type: Number,
+        default: 0
+    },
+    numReviews: {
+        type: Number,
+        default: 0
+    },
+    reviews: [
+        {
+            user: {
+                type: mongoose.Schema.ObjectId,
+                ref: 'User'
+            },
+            name: {
+                type: String
+            },
+            rating: {
+                type: Number,
+                required: true
+            },
+            text: {
+                type: String,
+                required: true
+            },
+            sentiment: {
+                type: String,
+                enum: ['Positive', 'Neutral', 'Negative'],
+                default: 'Neutral'
+            },
+            isFake: {
+                type: Boolean,
+                default: false
+            },
+            isSuspicious: {
+                type: Boolean,
+                default: false
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now
+            }
+        }
+    ],
+    amazonLink: {
+        type: String,
+        default: ''
+    },
+    flipkartLink: {
+        type: String,
+        default: ''
     }
-  ],
-
-  stock: {
-    type: Number,
-    default: 0
-  },
-
-  ratings: {
-    type: Number,
-    default: 0
-  },
-
-  numOfReviews: {
-    type: Number,
-    default: 0
-  },
-
-  smartScore: {
-    type: Number,
-    default: 0
-  },
-
-
-  reviews: [reviewSchema],
-
-  tags: [String],
-
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-
-  // 📈 Price History for Trending Intelligence
-  priceHistory: [
-    {
-      price: { type: Number, required: true },
-      date: { type: Date, default: Date.now }
-    }
-  ],
-
-  // 🤖 AI Insights (Explainable AI)
-  aiInsights: {
-    positiveHighlights: [String],
-    negativeHighlights: [String],
-    summary: String,
-    lastGenerated: Date
-  },
-
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+}, {
+    timestamps: true
 });
 
-
-// 🔍 Text search (AI search support)
-productSchema.index({
-  name: 'text',
-  description: 'text',
-  tags: 'text'
-});
-
-
-// ================= EXPORT =================
 module.exports = mongoose.model('Product', productSchema);
+

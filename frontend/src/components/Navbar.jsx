@@ -12,7 +12,7 @@ export default function Navbar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   
-  const { activeUser, logoutActiveUser, cart } = useStore();
+  const { activeUser, logoutActiveUser, cartItems } = useStore();
   const navigate = useNavigate();
   const searchRef = useRef(null);
 
@@ -85,6 +85,9 @@ export default function Navbar() {
             <Link to="/compare" className="flex items-center gap-2 hover:text-accent transition-colors">
               <Scale className="w-4 h-4" /> Compare
             </Link>
+            <Link to="/reviews" className="flex items-center gap-2 hover:text-primary transition-colors">
+              <Star className="w-4 h-4" /> Reviews
+            </Link>
           </div>
         </div>
 
@@ -118,7 +121,7 @@ export default function Navbar() {
                       className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/50 p-4 hover:bg-slate-50 dark:hover:bg-[#1C2333] transition-colors"
                     >
                       <div className="bg-slate-50 dark:bg-[#0A101D] p-2 rounded-lg">
-                        <img src={item.image || item.images?.[0] || 'https://via.placeholder.com/40'} alt={item.name} className="w-12 h-12 object-contain" />
+                        <img src={item.image || item.images?.[0]?.url || 'https://via.placeholder.com/40'} alt={item.name} className="w-12 h-12 object-contain" />
                       </div>
                       <div className="flex flex-col flex-1">
                         <span className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-1">{item.name || item.title}</span>
@@ -142,11 +145,11 @@ export default function Navbar() {
           
           <Link to="/cart" className="relative group p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <ShoppingCart className="w-6 h-6 text-slate-600 dark:text-slate-300 group-hover:text-primary transition-colors" />
-            {cart?.length > 0 && (
+            {cartItems?.length > 0 && (
               <span 
                 className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white shadow-lg border-2 border-white dark:border-[#0A101D]"
               >
-                {cart.length}
+                {cartItems.length}
               </span>
             )}
           </Link>

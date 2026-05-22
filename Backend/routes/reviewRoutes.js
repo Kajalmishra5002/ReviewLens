@@ -1,11 +1,10 @@
-const express = require("express");
-const { addReview, getProductReviews, detectFakeReviewsForProduct, getProductXAIInsights } = require("../controllers/reviewController.js");
-
+const express = require('express');
 const router = express.Router();
+const { getProductReviews, addReview } = require('../controllers/reviewController');
 
-router.post("/", addReview);
-router.get("/:productId", getProductReviews);
-router.post("/:productId/detect-fake-reviews", detectFakeReviewsForProduct);
-router.get("/:productId/xai-insights", getProductXAIInsights);
+router.get('/:productId', getProductReviews);
+router.post('/', addReview);
+router.post('/add', addReview);
+
 
 module.exports = router;

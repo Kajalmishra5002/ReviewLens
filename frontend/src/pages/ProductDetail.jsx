@@ -1,25 +1,56 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Star, MessageSquareText, ThumbsUp, ThumbsDown, ArrowLeft, BrainCircuit, ShoppingCart, TrendingUp, Check, ShieldCheck, Zap, X, AlertTriangle, TrendingDown } from "lucide-react";
+import { Star, MessageSquareText, ThumbsUp, ThumbsDown, ArrowLeft, BrainCircuit, ShoppingCart, TrendingUp, Check, ShieldCheck, Zap, X, AlertTriangle, TrendingDown, PieChart as PieChartIcon } from "lucide-react";
 import useStore from "../store/useStore";
 import api from "../api/axios";
 import toast from "react-hot-toast";
 import SkeletonCard from "../components/SkeletonCard";
 // eslint-disable-next-line no-unused-vars
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import PriceHistoryChart from "../components/PriceHistoryChart";
+import ReviewForm from "../components/ReviewForm";
+import ReviewList from "../components/ReviewList";
+import ProductCard from "../components/ProductCard";
+
+// Chart Components
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from 'chart.js';
+import { Bar, Pie } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
 
 export default function ProductDetail() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [xaiInsights, setXaiInsights] = useState(null);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [relatedLoading, setRelatedLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [mainImage, setMainImage] = useState("");
   const { addToCompare, compareList, addToCart } = useStore();
   const navigate = useNavigate();
 
   // Review Filters
   const [reviewFilter, setReviewFilter] = useState("All");
+  const [showOnlyGenuine, setShowOnlyGenuine] = useState(false);
 
   const isCompared = product ? compareList.some((p) => p._id === product._id) : false;
 
@@ -41,7 +72,24 @@ export default function ProductDetail() {
     addToCart(product);
     navigate('/cart');
   };
+  const fetchReviews = () => {
+    setReviewsLoading(true);
+    api.get(`/reviews/${id}`)
+      .then(res => {
+        setReviews(res.data.reviews || []);
+        setReviewsLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to load reviews", err);
+        setReviewsLoading(false);
+      });
+  };
+
   useEffect(() => {
+    setLoading(true);
+    setError(null);
+
+    // 1. Fetch Product Data
     api.get(`/products/${id}`)
       .then(res => {
         const prod = res.data.product || res.data;
@@ -51,72 +99,103 @@ export default function ProductDetail() {
       })
       .catch(err => {
         console.error("Failed to load product details", err);
+        setError("Product not found or server error");
         setLoading(false);
+      });
+
+    // 2. Fetch Product Specific Reviews (Dynamic)
+    fetchReviews();
+
+    // 3. Fetch Related Products
+    setRelatedLoading(true);
+    api.get(`/products/related/${id}`)
+      .then(res => {
+        setRelatedProducts(res.data.products || []);
+        setRelatedLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to load related products", err);
+        setRelatedLoading(false);
       });
   }, [id]);
 
   // Derived Data
   const filteredReviews = useMemo(() => {
-    if (!product?.reviews) return [];
-    if (reviewFilter === "All") return product.reviews;
-    return product.reviews.filter(r => {
-      const sentiment = typeof r === 'object' ? r.sentiment : "Positive";
-      return sentiment === reviewFilter;
-    });
-  }, [product, reviewFilter]);
+    if (!reviews) return [];
+    let result = [...reviews];
+    
+    if (showOnlyGenuine) {
+      result = result.filter(r => !r.isFake);
+    }
+    
+    if (reviewFilter !== "All") {
+      result = result.filter(r => r.sentiment === reviewFilter);
+    }
+    
+    return result;
+  }, [reviews, reviewFilter, showOnlyGenuine]);
 
-  const { pros, cons, sentimentStats } = useMemo(() => {
-    if (!product) return { pros: [], cons: [], sentimentStats: { pos: 0, neu: 0, neg: 0 } };
+  const { pros, cons, sentimentStats, barChartData } = useMemo(() => {
+    if (!reviews || reviews.length === 0) {
+      if (product?.smartScore) {
+        const s = (product.smartScore / 5) * 100;
+        return { 
+          pros: [], cons: [], 
+          sentimentStats: { pos: Math.round(s), neu: 0, neg: Math.round(100 - s), posCount: 0, neuCount: 0, negCount: 0, fakeCount: 0 },
+          barChartData: { labels: [], datasets: [] }
+        };
+      }
+      return { pros: [], cons: [], sentimentStats: { pos: 0, neu: 0, neg: 0, posCount: 0, neuCount: 0, negCount: 0, fakeCount: 0 }, barChartData: { labels: [], datasets: [] } };
+    }
     
     let posCount = 0;
     let neuCount = 0;
     let negCount = 0;
     
-    const allReviews = product.reviews || [];
-    
-    // Count sentiments
-    allReviews.forEach(r => {
-      const sentiment = typeof r === 'object' ? r.sentiment : "Positive";
-      if (sentiment === 'Positive') posCount++;
-      else if (sentiment === 'Negative') negCount++;
+    reviews.forEach(r => {
+      if (r.sentiment === 'Positive') posCount++;
+      else if (r.sentiment === 'Negative') negCount++;
       else neuCount++;
     });
 
-    const total = allReviews.length || 1; // avoid division by zero
+    const total = reviews.length;
+    const fakeCount = reviews.filter(r => r.isFake).length;
     
-    // Extract short meaningful opinions
-    const extract = (sentimentType) => {
-      return allReviews
-        .filter(r => (typeof r === 'object' ? r.sentiment === sentimentType : sentimentType === 'Positive') && (typeof r === 'object' ? r.reviewText || r.comment : r))
-        .map(r => {
-           const text = typeof r === 'object' ? (r.reviewText || r.comment) : r;
-           const sentence = text.split(/[.!?,]/)[0].trim();
-           return sentence.length > 5 ? sentence : text.trim();
-        })
-        .filter(text => text.length < 80);
+    // Rating Distribution for Bar Chart
+    const ratings = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    reviews.forEach(r => {
+      const rate = Math.round(r.rating);
+      if (ratings[rate] !== undefined) ratings[rate]++;
+    });
+
+    const barChartData = {
+      labels: ['1 ⭐', '2 ⭐', '3 ⭐', '4 ⭐', '5 ⭐'],
+      datasets: [
+        {
+          label: 'Number of Reviews',
+          data: [ratings[1], ratings[2], ratings[3], ratings[4], ratings[5]],
+          backgroundColor: '#6366f1',
+          borderRadius: 8,
+        },
+      ],
     };
-
-    const uniquePros = [...new Set(extract("Positive"))].slice(0, 3);
-    const uniqueCons = [...new Set(extract("Negative"))].slice(0, 3);
-
-    // Fallback if no exact sentiment data
-    let posPercent = Math.round((posCount / total) * 100);
-    let negPercent = Math.round((negCount / total) * 100);
-    let neuPercent = Math.round((neuCount / total) * 100);
-
-    // Use smartScore if available and reviews are too few
-    if (allReviews.length === 0 && product.smartScore) {
-      posPercent = product.smartScore;
-      negPercent = Math.floor((100 - posPercent) * 0.4);
-      neuPercent = 100 - posPercent - negPercent;
-    }
 
     return {
-      pros: uniquePros,
-      cons: uniqueCons,
-      sentimentStats: { pos: posPercent, neu: neuPercent, neg: negPercent }
+      pros: [],
+      cons: [],
+      barChartData,
+      sentimentStats: { 
+        pos: total > 0 ? Math.round((posCount / total) * 100) : 0, 
+        neu: total > 0 ? Math.round((neuCount / total) * 100) : 0, 
+        neg: total > 0 ? Math.round((negCount / total) * 100) : 0,
+        posCount,
+        neuCount,
+        negCount,
+        fakeCount,
+        fakePercentage: total > 0 ? Math.round((fakeCount / total) * 100) : 0
+      }
     };
-  }, [product]);
+  }, [reviews, product]);
 
   if (loading) {
     return (
@@ -139,10 +218,10 @@ export default function ProductDetail() {
     );
   }
 
-  if (!product) {
+  if (error || !product) {
     return (
       <div className="text-center py-32 bg-white dark:bg-[#111A2E] rounded-3xl mt-10 shadow-sm border border-slate-200 dark:border-slate-800">
-        <h1 className="text-3xl font-black text-slate-900 dark:text-white mb-4">Product Not Found</h1>
+        <h1 className="text-3xl font-black text-slate-900 dark:text-white mb-4">{error || "Product Not Found"}</h1>
         <Link to="/" className="text-indigo-600 hover:text-indigo-700 font-bold inline-flex items-center gap-2">&larr; Back to Shop</Link>
       </div>
     );
@@ -212,8 +291,15 @@ export default function ProductDetail() {
             <div className="flex items-center gap-2 bg-yellow-400 text-yellow-900 px-3 py-1.5 rounded-xl font-bold shadow-sm">
               <Star className="w-4 h-4 fill-current" />
               <span>{product.rating || product.ratings || "N/A"}</span>
-              <span className="text-xs opacity-80 font-semibold ml-1">({product.reviews?.length || 0} Reviews)</span>
+              <span className="text-xs opacity-80 font-semibold ml-1">({reviews?.length || 0} Reviews)</span>
             </div>
+
+            {sentimentStats.fakePercentage > 20 && (
+              <div className="flex items-center gap-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-xl font-bold border border-red-200 dark:border-red-800 animate-pulse">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-xs uppercase tracking-tighter">AI Warning: High Fake Review Volume ({sentimentStats.fakePercentage}%)</span>
+              </div>
+            )}
 
             {/* PRAS Circular Grade Badge */}
             {product.smartScore > 0 && (() => {
@@ -412,16 +498,16 @@ export default function ProductDetail() {
 
           <div className="bg-slate-50 dark:bg-[#0A101D] p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-4">
              <div className="text-center">
-               <div className="text-3xl font-black text-slate-900 dark:text-white">{product.rating || product.ratings || "N/A"}</div>
+               <div className="text-3xl font-black text-slate-900 dark:text-white">{product.avgRating || product.rating || product.ratings || "0"}</div>
                <div className="flex items-center gap-1 text-yellow-500 justify-center mt-1">
                  {[...Array(5)].map((_, i) => (
-                   <Star key={i} className={`w-3.5 h-3.5 ${i < Math.round(product.rating || product.ratings || 0) ? 'fill-current' : 'text-slate-300 dark:text-slate-700'}`} />
+                   <Star key={i} className={`w-3.5 h-3.5 ${i < Math.round(product.avgRating || product.rating || product.ratings || 0) ? 'fill-current' : 'text-slate-300 dark:text-slate-700'}`} />
                  ))}
                </div>
              </div>
              <div className="w-px h-12 bg-slate-200 dark:bg-slate-700"></div>
              <div>
-               <div className="text-2xl font-black text-slate-900 dark:text-white">{product.reviews?.length || 0}</div>
+               <div className="text-2xl font-black text-slate-900 dark:text-white">{product.totalReviews || reviews.length}</div>
                <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Reviews</div>
              </div>
           </div>
@@ -438,7 +524,7 @@ export default function ProductDetail() {
             <div className="space-y-5">
               <div>
                 <div className="flex justify-between text-sm font-bold mb-2">
-                  <span className="text-emerald-600 dark:text-emerald-400">Positive</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">Positive ({sentimentStats.posCount})</span>
                   <span className="text-emerald-600 dark:text-emerald-400">{sentimentStats.pos}%</span>
                 </div>
                 <div className="w-full h-3 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -448,7 +534,7 @@ export default function ProductDetail() {
               
               <div>
                 <div className="flex justify-between text-sm font-bold mb-2">
-                  <span className="text-yellow-600 dark:text-yellow-400">Neutral</span>
+                  <span className="text-yellow-600 dark:text-yellow-400">Neutral ({sentimentStats.neuCount})</span>
                   <span className="text-yellow-600 dark:text-yellow-400">{sentimentStats.neu}%</span>
                 </div>
                 <div className="w-full h-3 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -458,7 +544,7 @@ export default function ProductDetail() {
 
               <div>
                 <div className="flex justify-between text-sm font-bold mb-2">
-                  <span className="text-red-600 dark:text-red-400">Negative</span>
+                  <span className="text-red-600 dark:text-red-400">Negative ({sentimentStats.negCount})</span>
                   <span className="text-red-600 dark:text-red-400">{sentimentStats.neg}%</span>
                 </div>
                 <div className="w-full h-3 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -468,126 +554,121 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          {/* Positives */}
-          <div className="bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400 mb-5 font-bold text-lg">
-              <div className="p-2 bg-emerald-100 dark:bg-emerald-500/20 rounded-xl"><ThumbsUp className="w-5 h-5" /></div> 
-              Top Positives
+          {/* Rating Distribution Bar Chart */}
+          <div className="bg-slate-50 dark:bg-[#0A101D] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col justify-center">
+            <h3 className="font-bold text-slate-900 dark:text-white mb-6 uppercase tracking-wider text-sm flex items-center gap-2">
+              <Star className="w-4 h-4 text-yellow-500" /> Rating Distribution
+            </h3>
+            <div className="h-40">
+               {reviews.length > 0 ? (
+                 <Bar 
+                   data={barChartData} 
+                   options={{ 
+                     responsive: true, 
+                     maintainAspectRatio: false, 
+                     plugins: { legend: { display: false } },
+                     scales: { 
+                       y: { display: false }, 
+                       x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { weight: 'bold' } } } 
+                     } 
+                   }} 
+                 />
+               ) : (
+                 <div className="h-full flex items-center justify-center text-slate-400 font-bold uppercase tracking-widest text-xs">No Data</div>
+               )}
             </div>
-            <ul className="space-y-4">
-              {pros.map((pro, i) => (
-                <li key={`pro-${i}`} className="text-slate-700 dark:text-slate-300 flex items-start gap-3 font-medium text-sm">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" /> 
-                  <span>{pro}</span>
-                </li>
-              ))}
-              {pros.length === 0 && <li className="text-slate-500 italic text-sm font-medium">No major pros identified yet.</li>}
-            </ul>
           </div>
 
-          {/* Negatives */}
-          <div className="bg-red-50/50 dark:bg-red-500/5 border border-red-100 dark:border-red-500/10 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-3 text-red-600 dark:text-red-400 mb-5 font-bold text-lg">
-              <div className="p-2 bg-red-100 dark:bg-red-500/20 rounded-xl"><ThumbsDown className="w-5 h-5" /></div> 
-              Top Concerns
+          {/* Genuine vs Fake Pie Chart */}
+          <div className="bg-slate-50 dark:bg-[#0A101D] p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <h4 className="font-bold text-slate-900 dark:text-white mb-6 uppercase tracking-wider text-sm flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-500" /> Review Authenticity
+            </h4>
+            <div className="h-40">
+              <Pie 
+                data={{
+                  labels: ['Genuine', 'Fake'],
+                  datasets: [{
+                    data: [(sentimentStats.posCount + sentimentStats.neuCount + sentimentStats.negCount) - sentimentStats.fakeCount, sentimentStats.fakeCount],
+                    backgroundColor: ['#10b981', '#ef4444'],
+                    borderWidth: 0,
+                  }]
+                }}
+                options={{
+                  maintainAspectRatio: false,
+                  plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { weight: 'bold' } } } }
+                }}
+              />
             </div>
-            <ul className="space-y-4">
-              {cons.map((con, i) => (
-                <li key={`con-${i}`} className="text-slate-700 dark:text-slate-300 flex items-start gap-3 font-medium text-sm">
-                  <X className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" /> 
-                  <span>{con}</span>
-                </li>
-              ))}
-              {cons.length === 0 && <li className="text-slate-500 italic text-sm font-medium">No major concerns reported by users.</li>}
-            </ul>
           </div>
 
+        </div>
+
+        {/* Review Form Integration */}
+        <div className="mt-12">
+          <ReviewForm productId={id} onReviewAdded={fetchReviews} />
         </div>
 
         {/* Filters & Reviews List */}
         <div className="mt-16 border-t border-slate-100 dark:border-slate-800 pt-10">
           
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <MessageSquareText className="w-6 h-6 text-indigo-500" />
-              All Reviews
-            </h3>
-            
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-2 bg-slate-50 dark:bg-[#0A101D] p-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
-              {["All", "Positive", "Neutral", "Negative"].map(f => (
+          {/* Filter Controls */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8 p-6 bg-white dark:bg-[#111A2E] rounded-3xl border border-slate-200 dark:border-slate-800">
+            <div className="flex flex-wrap gap-2">
+              {["All", "Positive", "Neutral", "Negative"].map((f) => (
                 <button
                   key={f}
                   onClick={() => setReviewFilter(f)}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                     reviewFilter === f 
-                      ? f === 'Positive' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' 
-                        : f === 'Negative' ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
-                        : f === 'Neutral' ? 'bg-yellow-500 text-white shadow-md shadow-yellow-500/20'
-                        : 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
+                      ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20" 
+                      : "bg-slate-50 dark:bg-[#0A101D] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100"
                   }`}
                 >
                   {f}
                 </button>
               ))}
             </div>
+
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className="relative">
+                  <input 
+                    type="checkbox" 
+                    checked={showOnlyGenuine} 
+                    onChange={() => setShowOnlyGenuine(!showOnlyGenuine)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                </div>
+                <span className="text-xs font-black text-slate-500 group-hover:text-emerald-500 transition-colors uppercase tracking-tighter">Only Genuine Reviews</span>
+              </label>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredReviews.length > 0 ? (
-              filteredReviews.map((r, i) => {
-                const isObj = typeof r === 'object';
-                const cmt = isObj ? (r.reviewText || r.comment) : r;
-                const rName = isObj ? (r.userName || r.name) : "Verified Buyer";
-                const rRating = isObj ? (r.rating || 5) : 5;
-                const sentiment = isObj ? (r.sentiment || "Positive") : "Positive";
-                const isSuspicious = isObj ? !!r.isSuspicious : false;
-                
-                let badgeStyle = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700";
-                if(sentiment === 'Positive') badgeStyle = "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20";
-                else if (sentiment === 'Negative') badgeStyle = "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border-red-200 dark:border-red-500/20";
-                else badgeStyle = "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 border-yellow-200 dark:border-yellow-500/20";
-
-                return (
-                  <div key={`review-${i}`} className={`bg-slate-50 dark:bg-[#0A101D] p-6 rounded-2xl border flex flex-col justify-between hover:border-indigo-500/30 transition-colors ${isSuspicious ? 'border-red-300 dark:border-red-500/30 bg-red-50/30 dark:bg-red-500/5' : 'border-slate-200 dark:border-slate-800'}`}>
-                    {/* Fake Review Warning */}
-                    {isSuspicious && (
-                      <div className="flex items-center gap-2 text-xs font-black text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg px-3 py-1.5 mb-3">
-                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                        ⚠ Potential Fake Review
-                      </div>
-                    )}
-                    <div>
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex flex-col gap-1.5">
-                          <span className="font-bold text-slate-900 dark:text-white">{rName}</span>
-                          <div className="flex items-center gap-0.5">
-                            {[...Array(5)].map((_, idx) => (
-                              <Star key={idx} className={`w-3.5 h-3.5 ${idx < Math.round(rRating) ? "text-yellow-500 fill-yellow-500" : "text-slate-300 dark:text-slate-700"}`} />
-                            ))}
-                          </div>
-                        </div>
-                        <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border shadow-sm ${badgeStyle}`}>
-                          {sentiment}
-                        </span>
-                      </div>
-                      <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed italic font-medium">&quot;{cmt}&quot;</p>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="col-span-full py-10 text-center bg-slate-50 dark:bg-[#0A101D] rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
-                <MessageSquareText className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-                <p className="text-slate-600 dark:text-slate-300 font-bold text-lg">No {reviewFilter !== 'All' ? reviewFilter : ''} reviews found</p>
-                <p className="text-slate-500 text-sm mt-1">Try selecting a different filter.</p>
-              </div>
-            )}
-          </div>
+          <ReviewList reviews={filteredReviews} loading={reviewsLoading} />
         </div>
 
       </motion.div>
+
+      {/* Related Products Section */}
+      {relatedProducts.length > 0 && (
+        <div className="mt-24">
+          <div className="flex items-center justify-between mb-10 px-2">
+             <div>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white">Related Products</h2>
+                <p className="text-slate-500 font-medium mt-1">Based on category and similar features</p>
+             </div>
+             <Link to="/" className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">View All</Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+             {relatedProducts.map(p => (
+               <ProductCard key={p._id} p={p} />
+             ))}
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -41,17 +41,21 @@ print("PRAS v2 regression model trained successfully!")
 
 class ReviewRequest(BaseModel):
     text: str
+    rating: Optional[int] = None
 
 class SentimentResponse(BaseModel):
     sentiment: str
     confidence: float
+    fake_score: float
+    is_fake: bool
 
 @app.post("/analyze", response_model=SentimentResponse)
 @app.post("/predict-sentiment", response_model=SentimentResponse)
 async def analyze_sentiment(request: ReviewRequest):
     if not request.text or not request.text.strip():
-        return SentimentResponse(sentiment="Neutral", confidence=1.0)
+        return SentimentResponse(sentiment="Neutral", confidence=1.0, fake_score=0, is_fake=False)
 
+    # 1. Sentiment Analysis
     if sentiment_pipeline:
         result = sentiment_pipeline(request.text)[0]
         label = result['label']
@@ -59,17 +63,64 @@ async def analyze_sentiment(request: ReviewRequest):
         mapped_label = "Positive" if label == "POSITIVE" else "Negative"
         if score < 0.6: mapped_label = "Neutral"
     else:
-        # Fallback to very basic logic if model failed to load
         mapped_label = "Neutral"
         score = 0.5
 
-    return SentimentResponse(sentiment=mapped_label, confidence=round(score, 4))
+    # 2. Heuristic Fake Score Calculation
+    fake_score = 0
+    reasons = []
+
+    # Reason 1: Sentiment-Rating Mismatch
+    if request.rating is not None:
+        if (request.rating >= 4 and mapped_label == "Negative"):
+            fake_score += 60
+            reasons.append("sentiment_mismatch")
+        elif (request.rating <= 2 and mapped_label == "Positive"):
+            fake_score += 60
+            reasons.append("sentiment_mismatch")
+
+    # Reason 2: Text Length & Quality
+    words = request.text.strip().split()
+    if len(words) < 5:
+        fake_score += 40
+        reasons.append("too_short")
+    
+    # Reason 3: Repetitive Patterns
+    word_counts = {}
+    for w in words:
+        w_lower = w.lower()
+        word_counts[w_lower] = word_counts.get(w_lower, 0) + 1
+    
+    max_repeat = max(word_counts.values()) if word_counts else 0
+    if max_repeat > len(words) * 0.5 and len(words) > 5:
+        fake_score += 50
+        reasons.append("repetitive")
+
+    # 4. Length Check (Too short is suspicious)
+    if len(request.text.split()) < 3:
+        fake_score += 30
+        reasons.append("Low Info Density (Too Short)")
+
+    # 5. Punctuation Spam (e.g. "!!!", "???")
+    if request.text.count('!') > 3 or request.text.count('?') > 3:
+        fake_score += 25
+        reasons.append("Punctuation Spam")
+
+    is_fake = fake_score >= 50
+
+    return SentimentResponse(
+        sentiment=mapped_label, 
+        confidence=round(score, 4),
+        fake_score=float(fake_score),
+        is_fake=is_fake
+    )
 
 class ReviewData(BaseModel):
     id: str
     text: str
     user_id: str
     timestamp: str
+    rating: Optional[int] = 5
 
 class FakeDetectionRequest(BaseModel):
     reviews: List[ReviewData]
@@ -87,9 +138,10 @@ async def detect_fake_reviews(request: FakeDetectionRequest):
     for r in reviews:
         user_counts[r.user_id] = user_counts.get(r.user_id, 0) + 1
     for r in reviews:
-        if user_counts[r.user_id] > 3: flagged_ids.add(r.id)
+        if user_counts[r.user_id] > 3: 
+            flagged_ids.add(r.id)
 
-    # 2. Text Similarity
+    # 2. Text Similarity (Duplicate/Near-Duplicate)
     texts = [r.text for r in reviews]
     if len(texts) > 1:
         try:
@@ -101,10 +153,21 @@ async def detect_fake_reviews(request: FakeDetectionRequest):
                     if cosine_sim[i][j] >= 0.85:
                         flagged_ids.add(reviews[i].id)
                         flagged_ids.add(reviews[j].id)
-        except: pass
+        except Exception as e:
+            print(f"Similarity detection error: {e}")
+
+    # 3. Pattern Detection (e.g. all reviews same rating, very short)
+    for r in reviews:
+        if len(r.text.split()) < 3:
+            flagged_ids.add(r.id)
 
     fake_percentage = (len(flagged_ids) / len(reviews)) * 100
-    return {"fake_percentage": round(fake_percentage, 2), "flagged_review_ids": list(flagged_ids)}
+    return {
+        "fake_percentage": round(fake_percentage, 2), 
+        "flagged_review_ids": list(flagged_ids),
+        "total_reviews": len(reviews),
+        "flagged_count": len(flagged_ids)
+    }
 
 class PRASRequest(BaseModel):
     sentiment_score: float
@@ -175,10 +238,23 @@ async def generate_description(req: DescriptionRequest):
     description = f"The {req.brand} {req.name} is a state-of-the-art {req.category} designed for excellence. Featuring {feat_str}, it offers a seamless experience for modern users."
     return {"description": description}
 
+class RecommendRequest(BaseModel):
+    user_id: str
+    purchase_history: List[str] = []
+
+@app.post("/recommend")
+async def recommend_products(req: RecommendRequest):
+    # Mock recommendation logic: returning empty list to trigger backend fallback
+    # or could return some random IDs if we had a list.
+    return {"recommended_ids": []}
+
 @app.get("/health")
+
 def health_check():
     return {"status": "ok", "service": "Unified AI"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import os
+    port = int(os.environ.get("PORT", 8001))
+    uvicorn.run(app, host="0.0.0.0", port=port)

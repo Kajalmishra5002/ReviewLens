@@ -72,7 +72,7 @@ export default function Compare() {
 
   const getDynamicScore = (product, priority) => {
     if (!product) return 0;
-    let score = product.smartScore || product.sentimentScore || 75;
+    let score = (product.smartScore * 20) || product.sentimentScore || 75;
     
     if (priority !== "Overall Best") {
       const featuresText = Array.isArray(product.features) ? product.features.join(" ") : (product.features || "");

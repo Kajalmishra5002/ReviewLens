@@ -5,7 +5,7 @@ import Footer from "../components/Footer";
 import SkeletonCard from "../components/SkeletonCard";
 import AIHighlightBanner from "../components/AIHighlightBanner";
 import api from "../api/axios";
-import { Filter, SlidersHorizontal, ChevronDown, Search, ArrowRight, Zap, Star, Shield, Cpu, Activity, Smartphone, Laptop, Headphones, Tv, Gamepad2, Tablet, Award } from "lucide-react";
+import { Filter, SlidersHorizontal, ChevronDown, Search, ArrowRight, Zap, Star, Shield, Cpu, Activity, Smartphone, Laptop, Headphones, Tv, Gamepad2, Tablet, Award, TrendingUp } from "lucide-react";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -13,8 +13,10 @@ export default function Home() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [bestProducts, setBestProducts] = useState([]);
+  const [trendingProducts, setTrendingProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [bestLoading, setBestLoading] = useState(true);
+  const [trendingLoading, setTrendingLoading] = useState(true);
   const [error, setError] = useState(null);
   const [heroSearch, setHeroSearch] = useState("");
 
@@ -52,6 +54,19 @@ export default function Home() {
       .catch((err) => {
         console.error("Failed to fetch best products:", err.message);
         setBestLoading(false);
+      });
+
+    // Fetch Trending Products
+    api.get("/products/trending/list")
+      .then((res) => {
+        if (res.data.success) {
+          setTrendingProducts(res.data.products || []);
+        }
+        setTrendingLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch trending products:", err.message);
+        setTrendingLoading(false);
       });
   }, []);
 
@@ -106,8 +121,8 @@ export default function Home() {
       break;
   }
 
-  const categories = ["All", ...new Set(products.map((p) => p?.category).filter(Boolean))];
-  const brands = ["All", ...new Set(products.map((p) => p?.brand).filter(Boolean))];
+  const categories = ["All", ...new Set((products || []).map((p) => p?.category).filter(Boolean))];
+  const brands = ["All", ...new Set((products || []).map((p) => p?.brand).filter(Boolean))];
 
   if (loading) {
     return (
@@ -260,6 +275,33 @@ export default function Home() {
 
       {/* 🤖 AI HIGHLIGHT BANNER */}
       <AIHighlightBanner />
+
+      {/* 📈 TRENDING PRODUCTS */}
+      <section className="mt-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-3xl font-black flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+              <TrendingUp className="w-8 h-8" /> Trending Now
+            </h2>
+            <p className="text-slate-500 font-bold ml-10">Products gaining momentum in verified user sentiment</p>
+          </div>
+          <button onClick={() => handleQuickSearch("trending")} className="text-indigo-500 font-black hover:underline flex items-center gap-1">
+            See All <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+        
+        {trendingLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {trendingProducts.slice(0, 4).map((p) => (
+              <ProductCard key={p._id} p={p} badgeType="trending" />
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* ⭐ BEST RATED PRODUCTS */}
       <section className="mt-8">
