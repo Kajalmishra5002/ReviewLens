@@ -1,7 +1,7 @@
 {
   "name": "reviewlens-backend",
   "version": "1.0.0",
-  "description": "Backend for ReviewLens AI",
+  "description": "backend for ReviewLens AI",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
