@@ -15,7 +15,7 @@ const app = express();
 // ✅ Middleware
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174'], credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 
 /**
  * Start Server only after MongoDB is ready
@@ -24,6 +24,20 @@ const startServer = async () => {
     try {
         // 1. Initialize MongoDB
         await connectDB();
+
+        // ✅ Auto-seed database if empty (safety net for new database setups/deployments)
+        if (global.isDBConnected) {
+            const Product = require('./models/Product');
+            const count = await Product.countDocuments();
+            if (count === 0) {
+                console.log("🌱 Database connected but empty. Seeding products automatically...".yellow.bold);
+                const { dummyProducts } = require('./data/dummyData');
+                if (dummyProducts && dummyProducts.length > 0) {
+                    await Product.insertMany(dummyProducts);
+                    console.log(`🚀 Successfully auto-seeded ${dummyProducts.length} products!`.green.bold);
+                }
+            }
+        }
 
         // 2. Load API Routes
         app.use('/api/auth', require('./routes/authRoutes'));
