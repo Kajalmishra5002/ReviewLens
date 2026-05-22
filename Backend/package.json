@@ -1,5 +1,5 @@
 {
-  "name": "reviewlens-Backend",
+  "name": "reviewlens-backend",
   "version": "1.0.0",
   "description": "Backend for ReviewLens AI",
   "main": "index.js",
